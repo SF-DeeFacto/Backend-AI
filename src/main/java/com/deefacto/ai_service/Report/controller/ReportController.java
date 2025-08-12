@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequiredArgsConstructor
@@ -38,7 +39,9 @@ public class ReportController {
             @RequestHeader("X-Role") String role
     ) throws IOException {
 
-        List<String> roles = Arrays.asList(role.split(","));
+        List<String> roles = Arrays.stream(role.split(","))
+                .map(String::trim)
+                .collect(Collectors.toList());
 
         boolean isAdmin = roles.contains("zone_A")&&roles.contains("zone_B")&&roles.contains("zone_C");
 
