@@ -1,6 +1,7 @@
 package com.deefacto.ai_service.Report.controller;
 
-import com.deefacto.ai_service.Report.Service.S3Service;
+import com.deefacto.ai_service.Report.Entity.Report;
+import com.deefacto.ai_service.Report.Service.ReportService;
 import com.deefacto.ai_service.common.dto.ApiResponseDto;
 import com.deefacto.ai_service.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -13,16 +14,21 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/reports")
 public class ReportController {
-    private final S3Service s3Service;
+    private final ReportService reportService;
 
-
+    @GetMapping("/list")
+    public ApiResponseDto<List<Report>> getReportsList(
+            @RequestHeader("X-Role") String role
+    ) {
+        List<Report> reportList = reportService.getReportsByRole(role);
+        return ApiResponseDto.createOk(reportList);
+    }
 
     @GetMapping("/download/{fileName}")
     public ResponseEntity<?> downloadPdf(
