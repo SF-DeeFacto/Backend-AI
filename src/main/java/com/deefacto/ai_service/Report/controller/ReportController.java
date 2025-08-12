@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.List;
 
 @RestController
@@ -24,9 +25,10 @@ public class ReportController {
 
     @GetMapping("/list")
     public ApiResponseDto<List<Report>> getReportsList(
-            @RequestHeader("X-Role") String role
+            @RequestHeader("X-Role") String role,
+            @RequestHeader("X-Employee-Id") String employeeId
     ) {
-        List<Report> reportList = reportService.getReportsByRole(role);
+        List<Report> reportList = reportService.getReportsByRoleAndEmployeeId(role, employeeId);
         return ApiResponseDto.createOk(reportList);
     }
 
@@ -36,11 +38,17 @@ public class ReportController {
             @RequestHeader("X-Role") String role
     ) throws IOException {
 
-        String roleKey = role.substring(role.lastIndexOf('_') + 1);
+        List<String> roles = Arrays.asList(role.split(","));
 
-        if (!fileName.contains(roleKey)) {
-            ApiResponseDto<String> errorBody = ApiResponseDto.createError(ErrorCode.FORBIDDEN.getCode(), ErrorCode.FORBIDDEN.getMessage());
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorBody);
+        boolean isAdmin = roles.contains("zone_A")&&roles.contains("zone_B")&&roles.contains("zone_C");
+
+        if(!isAdmin) {
+            boolean match = roles.stream().anyMatch(r -> fileName.contains(r.replace("zone_","")));
+            if(!match) {
+                ApiResponseDto<String> errorBody = ApiResponseDto.createError(ErrorCode.FORBIDDEN.getCode(),ErrorCode.FORBIDDEN.getMessage());
+
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorBody);
+            }
         }
 
         // 검증 통과 시 다운로드 처리

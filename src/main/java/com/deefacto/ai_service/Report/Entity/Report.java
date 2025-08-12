@@ -36,6 +36,6 @@ public class Report {
 
     // 작성자 (비정기일 경우 구분 필요)
     @Column(nullable = true)
-    private String writer;
+    private String employee_id;
 
 }
