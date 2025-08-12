@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,7 +27,9 @@ public class ReportService {
     private String bucketName;
 
     public List<Report> getReportsByRoleAndEmployeeId(String role, String employeeId) {
-        List<String> roles = Arrays.asList(role.split(","));
+        List<String> roles = Arrays.stream(role.split(","))
+                .map(String::trim)
+                .collect(Collectors.toList());
 
         boolean isAdmin = roles.contains("zone_A")&&roles.contains("zone_B")&&roles.contains("zone_C");
 
