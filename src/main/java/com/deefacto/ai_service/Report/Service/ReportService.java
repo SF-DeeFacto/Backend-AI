@@ -1,13 +1,15 @@
 package com.deefacto.ai_service.Report.Service;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.S3Object;
 import com.deefacto.ai_service.Report.Entity.Report;
 import com.deefacto.ai_service.Report.Repository.ReportRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,7 +22,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ReportService {
-    private final AmazonS3 amazonS3;
+    private final S3Client s3Client;
     private final ReportRepository reportRepository;
 
     @Value("${cloud.aws.s3.bucket}")
@@ -49,13 +51,25 @@ public class ReportService {
     }
 
     public InputStream downloadFile(String fileName) throws  IOException {
-        S3Object s3Object = amazonS3.getObject(bucketName, fileName);
-        return s3Object.getObjectContent();
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                .bucket(bucketName)
+                .key(fileName)
+                .build();
+
+        ResponseInputStream<?> s3ObjectInputStream = s3Client.getObject(getObjectRequest);
+        return s3ObjectInputStream;
     }
 
     public boolean exists(String key) {
+        HeadObjectRequest headObjectRequest = HeadObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .build();
         try{
-            return amazonS3.doesObjectExist(bucketName, key);
+            s3Client.headObject(headObjectRequest);
+            return true;
+        } catch (NoSuchKeyException e) {
+            return false; // 객체 없음
         } catch (Exception e) {
             return false; // S3 에러 시 false 처리
         }
