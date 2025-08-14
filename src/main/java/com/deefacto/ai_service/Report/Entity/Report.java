@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonTypeId;
 import lombok.*;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "reports")
 @Getter
@@ -28,14 +30,14 @@ public class Report {
 
     // 생성일자
     @Column(nullable = false, name = "created_at")
-    private String createdAt;
+    private LocalDateTime createdAt;
 
     // 타입 (정기/비정기)
     @Column(nullable = false)
     private String type;
 
     // 작성자 (비정기일 경우 구분 필요)
-    @Column(nullable = true)
-    private String employee_id;
+    @Column(nullable = true, name = "employee_id")
+    private String employeeId;
 
 }

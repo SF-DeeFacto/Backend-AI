@@ -24,33 +24,52 @@ import java.util.stream.Collectors;
 public class ReportController {
     private final ReportService reportService;
 
+    // 리포트 조회
     @GetMapping("/list")
-    public ApiResponseDto<List<Report>> getReportsList(
+    public ApiResponseDto<Page<Report>> getReportsList(
             @RequestHeader("X-Role") String role,
-            @RequestHeader("X-Employee-Id") String employeeId
-    ) {
-        List<Report> reportList = reportService.getReportsByRoleAndEmployeeId(role, employeeId);
-        return ApiResponseDto.createOk(reportList);
+            @RequestHeader("X-Employee-Id") String employeeId,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)LocalDate endDate,
+            Pageable pageable
+            ) {
+        List<String> roles = reportService.makeRoles(role);
+
+        // LocalDate → LocalDateTime 변환
+        LocalDateTime start = (startDate != null) ? startDate.atStartOfDay() : null;
+        LocalDateTime end = (endDate != null) ? endDate.atTime(23, 59, 59) : null;
+
+        // 조건 검색
+        if((type != null && !type.trim().isEmpty()) || startDate != null || endDate != null) {
+            return ApiResponseDto.createOk(
+                    reportService.serchReports(employeeId,roles,type,start,end,pageable)
+            );
+        }
+        // 전체 조회
+        else {
+            Page<Report> reportList = reportService.getReportsByRoleAndEmployeeId(roles, employeeId, pageable);
+            return ApiResponseDto.createOk(reportList);
+        }
     }
+
 
     @GetMapping("/download/{fileName}")
     public ResponseEntity<?> downloadPdf(
             @PathVariable String fileName,
-            @RequestHeader("X-Role") String role
+            @RequestHeader("X-Role") String role,
+            @RequestHeader("X-Employee-Id") String employeeId
     ) throws IOException {
 
-        List<String> roles = Arrays.stream(role.split(","))
-                .map(String::trim)
-                .collect(Collectors.toList());
+        List<String> roles = reportService.makeRoles(role);
 
-        boolean isAdmin = roles.contains("zone_A")&&roles.contains("zone_B")&&roles.contains("zone_C");
+        boolean isAdmin = reportService.isAdmin(roles);
 
         if(!isAdmin) {
-            boolean match = roles.stream().anyMatch(r -> fileName.contains(r.replace("zone_","")));
-            if(!match) {
-                ApiResponseDto<String> errorBody = ApiResponseDto.createError(ErrorCode.FORBIDDEN.getCode(),ErrorCode.FORBIDDEN.getMessage());
-
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorBody);
+            if(!reportService.isDownloadAllowed(roles, employeeId, fileName)) {
+                ApiResponseDto<String> errorBody = ApiResponseDto.createError(ErrorCode.UNAUTHORIZED.getCode(), ErrorCode.UNAUTHORIZED.getMessage());
+                return ResponseEntity.badRequest()
+                        .body(errorBody);
             }
         }
 
