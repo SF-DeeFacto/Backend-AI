@@ -24,7 +24,7 @@ public class Report {
     @Column(nullable = false, name = "file_name")
     private String fileName;
 
-    // 권한 (zone_A)
+    // 권한 (zone_A) -> Redis 상 zone을 의미
     @Column(nullable = false)
     private String role;
 

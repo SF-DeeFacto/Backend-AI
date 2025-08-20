@@ -3,11 +3,18 @@ package com.deefacto.ai_service.Report.Service;
 import com.deefacto.ai_service.Report.Entity.Report;
 import com.deefacto.ai_service.Report.Repository.ReportRepository;
 import com.deefacto.ai_service.Report.Repository.ReportSpecs;
+import com.deefacto.ai_service.common.exception.CustomException;
+import com.deefacto.ai_service.common.exception.ErrorCode;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -26,6 +33,13 @@ import java.util.stream.Collectors;
 public class ReportService {
     private final S3Client s3Client;
     private final ReportRepository reportRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ReactiveRedisTemplate<String, String> redisTemplate;
+
+//    public ReportService(ReactiveRedisTemplate redisTemplate) {
+//        this.redisTemplate = redisTemplate;
+//    }
+
 
     @Value("${cloud.aws.s3.bucket}")
     private String bucketName;
@@ -33,7 +47,8 @@ public class ReportService {
     // 리포트 조회 - 전체 조회
     public Page<Report> getReportsByRoleAndEmployeeId(List<String> roles, String employeeId, Pageable pageable) {
 
-        boolean isAdmin = isAdmin(roles);
+        boolean isAdmin = isAdmin(employeeId);
+        System.out.println(isAdmin);
 
         if(isAdmin) {
             return reportRepository.findAllReports(pageable);
@@ -61,7 +76,7 @@ public class ReportService {
             LocalDateTime endDate,
             Pageable pageable
     ) {
-        boolean isAdmin = isAdmin(roles);
+        boolean isAdmin = isAdmin(employeeId);
 
         // 빈 검색 조건 생성
         Specification<Report> spec = (root, query, cb) -> null;
@@ -113,21 +128,45 @@ public class ReportService {
         }
     }
 
-    // 관리자 확인 로직
-    public Boolean isAdmin(List<String> roles) {
-        return roles.contains("a")&&roles.contains("b")&&roles.contains("c");
+    // Redis 정보 추출 - 관리자 여부 확인
+    public Boolean isAdmin(String employeeId) {
+        String key = "user:"+ employeeId;
+        String value = redisTemplate.opsForValue().get(key).block();
+        if(value == null) {
+            throw new CustomException(ErrorCode.UNAUTHORIZED);
+        }
+
+        try {
+            JsonNode node = objectMapper.readTree(value);
+            String role = node.path("role").asText();
+            return role.contains("ROOT") || role.contains("ADMIN");
+        } catch (JsonProcessingException e) {
+            throw new CustomException(ErrorCode.INTERNAL_ERROR);
+        }
     }
 
-    // role List 생성
-    public List<String> makeRoles(String role) {
-        return Arrays.stream(role.split(","))
-                .map(String::trim)
-                .collect(Collectors.toList());
+    // Redis 정보 추출 - Scopes List 생성
+    public List<String> makeScopes(String employeeId) {
+        String key = "user:" + employeeId;
+        String value = redisTemplate.opsForValue().get(key).block();
+        if(value == null) {
+            throw new CustomException(ErrorCode.UNAUTHORIZED);
+        }
+
+        try {
+            JsonNode node = objectMapper.readTree(value);
+            String scopeStr = node.path("scope").asText();
+            return Arrays.stream(scopeStr.split(","))
+                    .map(String::trim)
+                    .toList();
+        } catch (JsonProcessingException e) {
+            throw new CustomException(ErrorCode.INTERNAL_ERROR);
+        }
     }
 
     // 다운로드 시도 시 검증
     public boolean isDownloadAllowed(
-            List<String> roles,
+            List<String> scopes,
             String employeeId,
             String fileName
     ) {
@@ -140,7 +179,7 @@ public class ReportService {
         Report report = reportOpt.get();
 
         if("정기".equals(report.getType())) {
-            return roles.contains(report.getRole());
+            return scopes.contains(report.getRole());
         } else if("비정기".equals(report.getType())) {
             return employeeId.equals(report.getEmployeeId());
         }

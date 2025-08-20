@@ -10,7 +10,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,9 +18,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
-import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequiredArgsConstructor
@@ -32,14 +29,13 @@ public class ReportController {
     // 리포트 조회
     @GetMapping("/list")
     public ApiResponseDto<Page<Report>> getReportsList(
-            @RequestHeader("X-Role") String role,
             @RequestHeader("X-Employee-Id") String employeeId,
             @RequestParam(required = false) String type,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)LocalDate endDate,
             Pageable pageable
             ) {
-        List<String> roles = reportService.makeRoles(role);
+        List<String> scopes = reportService.makeScopes(employeeId);
 
         // LocalDate → LocalDateTime 변환
         LocalDateTime start = (startDate != null) ? startDate.atStartOfDay() : null;
@@ -48,12 +44,12 @@ public class ReportController {
         // 조건 검색
         if((type != null && !type.trim().isEmpty()) || startDate != null || endDate != null) {
             return ApiResponseDto.createOk(
-                    reportService.serchReports(employeeId,roles,type,start,end,pageable)
+                    reportService.serchReports(employeeId,scopes,type,start,end,pageable)
             );
         }
         // 전체 조회
         else {
-            Page<Report> reportList = reportService.getReportsByRoleAndEmployeeId(roles, employeeId, pageable);
+            Page<Report> reportList = reportService.getReportsByRoleAndEmployeeId(scopes, employeeId, pageable);
             return ApiResponseDto.createOk(reportList);
         }
     }
@@ -62,13 +58,12 @@ public class ReportController {
     @GetMapping("/download/{fileName}")
     public ResponseEntity<?> downloadPdf(
             @PathVariable String fileName,
-            @RequestHeader("X-Role") String role,
             @RequestHeader("X-Employee-Id") String employeeId
     ) throws IOException {
 
-        List<String> roles = reportService.makeRoles(role);
+        List<String> roles = reportService.makeScopes(employeeId);
 
-        boolean isAdmin = reportService.isAdmin(roles);
+        boolean isAdmin = reportService.isAdmin(employeeId);
 
         if(!isAdmin) {
             if(!reportService.isDownloadAllowed(roles, employeeId, fileName)) {
