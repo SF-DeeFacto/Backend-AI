@@ -70,7 +70,7 @@ pipeline {
             steps {
                 script {
                     def versionFromTag = params.TAG.replace('origin/', '').trim()
-                    def APP_VERSION = "${versionFromTag}"
+                    APP_VERSION = "${versionFromTag}"
 
                     if (params.RELEASE) {
                         APP_VERSION += '-RELEASE'
