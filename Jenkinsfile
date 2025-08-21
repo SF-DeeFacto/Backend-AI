@@ -3,11 +3,7 @@ def DOCKER_IMAGE_NAME
 def PROD_BUILD = false
 
 pipeline {
-    agent {
-        node {
-            label 'master'
-        }
-    }
+    agent any
 
     parameters {
         gitParameter branch: '',
