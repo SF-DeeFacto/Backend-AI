@@ -26,14 +26,17 @@ pipeline {
     }
 
     environment {
-        // GitHub HTTP URL 사용 - Public이므로 인증 필요 없음
+        // dotenv 플러그인을 사용하여 .env 파일의 변수 로드
+        def envVars = readProperties file: '.env'
+
         GIT_URL = "https://github.com/SF-DeeFacto/Backend-AI.git"
 
-        ARTIFACTS = "build/libs/**"
-        // Docker Hub 계정의 사용자 이름
-        DOCKER_REGISTRY = "deefacto"
-        // Jenkins에 등록된 Docker Hub 인증 정보 ID
-        DOCKERHUB_CREDENTIAL = 'dockerhub-deefacto'
+        ECR_REPOSITORY = envVars.ECR_REPOSITORY
+        AWS_ACCOUNT_ID = envVars.AWS_ACCOUNT_ID
+        AWS_REGION = envVars.AWS_REGION
+        ECR_REGISTRY_URL = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+        AWS_CREDENTIALS = 'jenkins-ecr'
     }
 
     options {
@@ -66,7 +69,8 @@ pipeline {
                         PROD_BUILD = true
                     }
 
-                    DOCKER_IMAGE_NAME = "${DOCKER_REGISTRY}/${APP_NAME}:${APP_VERSION}"
+                    // ECR 레지스트리 URL과 레포지토리를 사용해 이미지 이름 설정
+                    DOCKER_IMAGE_NAME = "${ECR_REGISTRY_URL}/${ECR_REPOSITORY}:${APP_VERSION}"
 
                     sh "echo DOCKER_IMAGE_NAME is ${DOCKER_IMAGE_NAME}"
                 }
@@ -86,9 +90,20 @@ pipeline {
             }
         }
 
+        stage('Login to ECR') {
+            steps {
+                script {
+                    withAWS(credentials: AWS_CREDENTIALS, region: AWS_REGION) {
+                        sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY_URL}"
+                    }
+                }
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 script {
+                    // ECR 레지스트리 URL과 레포지토리를 사용해 이미지 빌드
                     docker.build "${DOCKER_IMAGE_NAME}"
                 }
             }
@@ -97,9 +112,9 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 script {
-                    docker.withRegistry("", DOCKERHUB_CREDENTIAL) {
-                        docker.image("${DOCKER_IMAGE_NAME}").push()
-                    }
+                    // ECR로 이미지를 푸시
+                    sh "docker push ${DOCKER_IMAGE_NAME}"
+                    // 로컬에서 사용한 이미지 정리
                     sh "docker rmi ${DOCKER_IMAGE_NAME}"
                 }
             }
