@@ -41,7 +41,7 @@ pipeline {
     stages {
         stage('Checkout Source Code') {
             steps {
-                git branch: "${params.TAG}",
+                git branch: "origin/${params.TAG}",
                     url: "${GIT_URL}"
             }
         }
