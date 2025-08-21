@@ -26,33 +26,38 @@ pipeline {
     }
 
     environment {
-        // dotenv 플러그인을 사용하여 .env 파일의 변수 로드
-        def envVars = readProperties file: '.env'
-
         GIT_URL = "https://github.com/SF-DeeFacto/Backend-AI.git"
-
-        ECR_REPOSITORY = envVars.ECR_REPOSITORY
-        AWS_ACCOUNT_ID = envVars.AWS_ACCOUNT_ID
-        AWS_REGION = envVars.AWS_REGION
-        ECR_REGISTRY_URL = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-
         AWS_CREDENTIALS = 'jenkins-ecr'
     }
 
     options {
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: "30", artifactNumToKeepStr: "30"))
-        timeout(time: 60, unit: 'MINUTES') // 빌드 타임아웃을 60분으로 설정
-        retry(2) // 실패 시 2회 재시도
+        timeout(time: 60, unit: 'MINUTES')
+        retry(2)
     }
 
     tools {
         gradle 'Gradle 8.14.2'
         jdk 'OpenJDK 17'
-        dockerTool 'Docker'
     }
 
     stages {
+        stage('Set Environment Variables') {
+            steps {
+                script {
+                    def envVars = readProperties file: '.env'
+
+                    // .env 변수들을 전역 변수에 할당
+                    env.ECR_REPOSITORY = envVars.ECR_REPOSITORY
+                    env.AWS_ACCOUNT_ID = envVars.AWS_ACCOUNT_ID
+                    env.AWS_REGION = envVars.AWS_REGION
+
+                    env.ECR_REGISTRY_URL = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
+                }
+            }
+        }
+
         stage('Set Version') {
             steps {
                 script {
@@ -69,8 +74,7 @@ pipeline {
                         PROD_BUILD = true
                     }
 
-                    // ECR 레지스트리 URL과 레포지토리를 사용해 이미지 이름 설정
-                    DOCKER_IMAGE_NAME = "${ECR_REGISTRY_URL}/${ECR_REPOSITORY}:${APP_VERSION}"
+                    DOCKER_IMAGE_NAME = "${env.ECR_REGISTRY_URL}/${env.ECR_REPOSITORY}:${APP_VERSION}"
 
                     sh "echo DOCKER_IMAGE_NAME is ${DOCKER_IMAGE_NAME}"
                 }
@@ -93,8 +97,8 @@ pipeline {
         stage('Login to ECR') {
             steps {
                 script {
-                    withAWS(credentials: AWS_CREDENTIALS, region: AWS_REGION) {
-                        sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY_URL}"
+                    withAWS(credentials: AWS_CREDENTIALS, region: env.AWS_REGION) {
+                        sh "aws ecr get-login-password --region ${env.AWS_REGION} | docker login --username AWS --password-stdin ${env.ECR_REGISTRY_URL}"
                     }
                 }
             }
@@ -103,7 +107,6 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    // ECR 레지스트리 URL과 레포지토리를 사용해 이미지 빌드
                     docker.build "${DOCKER_IMAGE_NAME}"
                 }
             }
@@ -112,9 +115,7 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 script {
-                    // ECR로 이미지를 푸시
                     sh "docker push ${DOCKER_IMAGE_NAME}"
-                    // 로컬에서 사용한 이미지 정리
                     sh "docker rmi ${DOCKER_IMAGE_NAME}"
                 }
             }
