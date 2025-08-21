@@ -48,6 +48,13 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 }
 
+// build.gradle 파일 하단에 추가
+tasks.register('printProjectName') {
+	doLast {
+		println project.name
+	}
+}
+
 tasks.named('test') {
 	useJUnitPlatform()
 }

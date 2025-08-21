@@ -1,4 +1,4 @@
-def APP_NAME
+def APP_VERSION
 def DOCKER_IMAGE_NAME
 def PROD_BUILD = false
 
@@ -39,56 +39,6 @@ pipeline {
     }
 
     stages {
-        stage('Set Environment Variables') {
-            steps {
-                script {
-                    withCredentials([file(credentialsId: 'deefato-AI-service-env', variable: 'ENV_FILE')]) {
-                        // 이제 ${ENV_FILE} 변수는 .env 파일의 임시 경로를 가리킵니다.
-
-                        // .env 파일의 내용을 읽어 환경 변수로 설정
-                        def props = readProperties file: "${ENV_FILE}"
-
-                        // Gradle 태스크 실행 전에 모든 환경 변수 설정
-                        env.APP_NAME = props.APP_NAME
-                        env.ECR_REPOSITORY = props.ECR_REPOSITORY
-                        env.AWS_ACCOUNT_ID = props.AWS_ACCOUNT_ID
-                        env.AWS_REGION = props.AWS_REGION
-                        env.ECR_REGISTRY_URL = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
-
-                        // 환경 변수들이 올바르게 설정되었는지 확인
-                        sh 'echo "App name is: ${env.APP_NAME}"'
-                        sh 'echo "ECR Repository is: ${env.ECR_REPOSITORY}"'
-
-                        // Gradle 태스크 실행
-                        sh "./gradlew -q getAppName"
-                    }
-                }
-            }
-        }
-
-        stage('Set Version') {
-            steps {
-                script {
-                    APP_NAME = sh(
-                            script: "gradle -q getAppName",
-                            returnStdout: true
-                    ).trim()
-
-                    def versionFromTag = params.TAG.replace('origin/', '').trim()
-                    APP_VERSION = "${versionFromTag}"
-
-                    if (params.RELEASE == true) {
-                        APP_VERSION += '-RELEASE'
-                        PROD_BUILD = true
-                    }
-
-                    DOCKER_IMAGE_NAME = "${env.ECR_REGISTRY_URL}/${env.ECR_REPOSITORY}:${APP_VERSION}"
-
-                    sh "echo DOCKER_IMAGE_NAME is ${DOCKER_IMAGE_NAME}"
-                }
-            }
-        }
-
         stage('Checkout Source Code') {
             steps {
                 git branch: "${params.TAG}",
@@ -96,9 +46,49 @@ pipeline {
             }
         }
 
+        stage('Set Environment Variables') {
+            steps {
+                script {
+                    def appName = sh(
+                        script: "./gradlew -q printProjectName",
+                        returnStdout: true
+                    ).trim()
+                    env.APP_NAME = appName
+
+                    withCredentials([file(credentialsId: 'deefato-AI-service-env', variable: 'ENV_FILE')]) {
+                        def props = readProperties file: ENV_FILE
+                        env.ECR_REPOSITORY = props.ECR_REPOSITORY
+                        env.AWS_ACCOUNT_ID = props.AWS_ACCOUNT_ID
+                        env.AWS_REGION = props.AWS_REGION
+                        env.ECR_REGISTRY_URL = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
+                    }
+                }
+            }
+        }
+
+        stage('Set Version & Docker Image Name') {
+            steps {
+                script {
+                    def versionFromTag = params.TAG.replace('origin/', '').trim()
+                    def APP_VERSION = "${versionFromTag}"
+
+                    if (params.RELEASE) {
+                        APP_VERSION += '-RELEASE'
+                        PROD_BUILD = true
+                    }
+
+                    DOCKER_IMAGE_NAME = "${env.ECR_REGISTRY_URL}/${env.ECR_REPOSITORY}:${env.APP_NAME}-${APP_VERSION}"
+
+                    sh "echo 'App name is: ${env.APP_NAME}'"
+                    sh "echo 'ECR Repository is: ${env.ECR_REPOSITORY}'"
+                    sh "echo 'DOCKER_IMAGE_NAME is ${DOCKER_IMAGE_NAME}'"
+                }
+            }
+        }
+
         stage('Build & Test Application') {
             steps {
-                sh "gradle clean build"
+                sh "./gradlew clean build"
             }
         }
 
