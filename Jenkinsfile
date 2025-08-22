@@ -38,11 +38,16 @@ pipeline {
         jdk 'OpenJDK 17'
     }
 
-    stages {
         stage('Checkout Source Code') {
             steps {
-                git branch: "origin/${params.TAG}",
-                    url: "${GIT_URL}"
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: "${params.TAG.replace('origin/', '')}"]],
+                    doGenerateSubmoduleConfigurations: false,
+                    extensions: [],
+                    submoduleCfg: [],
+                    userRemoteConfigs: [[url: "${GIT_URL}"]]
+                ])
             }
         }
 
