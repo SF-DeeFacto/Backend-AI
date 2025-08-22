@@ -99,7 +99,7 @@ pipeline {
                         env.ECR_REGISTRY_URL = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
                     }
 
-                    DOCKER_IMAGE_NAME = "${env.ECR_REGISTRY_URL}/${env.ECR_REPOSITORY}:${env.APP_NAME}-${APP_VERSION}"
+                    DOCKER_IMAGE_NAME = "${env.ECR_REGISTRY_URL}/${env.ECR_REPOSITORY}:${APP_NAME}-${APP_VERSION}"
 
                     sh "echo 'App name is: ${env.APP_NAME}'"
                     sh "echo 'ECR Repository is: ${env.ECR_REPOSITORY}'"
