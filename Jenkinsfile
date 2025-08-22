@@ -37,6 +37,7 @@ pipeline {
         gradle 'Gradle 8.14.2'
         jdk 'OpenJDK 17'
     }
+    stages{
 
         stage('Checkout Source Code') {
             steps {
@@ -123,5 +124,6 @@ pipeline {
                 }
             }
         }
+    }
     }
 }
