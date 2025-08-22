@@ -3,6 +3,9 @@
 # ========================================
 FROM gradle:8.4-jdk17 AS build
 
+# 빌드 시점에 APP_NAME 전달 받기
+ARG APP_NAME=ai_service
+
 # 작업 디렉토리 설정
 WORKDIR /app
 
@@ -34,7 +37,8 @@ WORKDIR /app
 RUN addgroup -g 1001 -S appgroup && \
     adduser -u 1001 -S appuser -G appgroup
 
-COPY --from=build /app/build/libs/*.jar app.jar
+# 빌드 단계에서 전달받은 APP_NAME 사용
+COPY --from=build /app/build/libs/${APP_NAME}*.jar app.jar
 RUN chown -R appuser:appgroup /app
 USER appuser
 

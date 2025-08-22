@@ -1,6 +1,7 @@
 def APP_VERSION
 def DOCKER_IMAGE_NAME
 def PROD_BUILD = false
+def APP_NAME = "ai_service" // 기본값, 필요시 변경 가능
 
 pipeline {
     agent any
@@ -33,10 +34,11 @@ pipeline {
         retry(2)
     }
 
-    tools {
-        gradle 'Gradle 8.14.2'
-        jdk 'OpenJDK 17'
-    }
+//     tools {
+//         gradle 'Gradle 8.14.2'
+//         jdk 'OpenJDK 17'
+//     }
+
     stages{
 
         stage('Checkout Source Code') {
@@ -52,31 +54,31 @@ pipeline {
             }
         }
 
-        stage('Prepare Gradle Wrapper') {
-            steps {
-                sh 'chmod +x gradlew'
-            }
-        }
-
-        stage('Set Environment Variables') {
-            steps {
-                script {
-                    def appName = sh(
-                        script: "./gradlew -q printProjectName",
-                        returnStdout: true
-                    ).trim()
-                    env.APP_NAME = appName
-
-                    withCredentials([file(credentialsId: 'deefato-AI-service-env', variable: 'ENV_FILE')]) {
-                        def props = readProperties file: ENV_FILE
-                        env.ECR_REPOSITORY = props.ECR_REPOSITORY
-                        env.AWS_ACCOUNT_ID = props.AWS_ACCOUNT_ID
-                        env.AWS_REGION = props.AWS_REGION
-                        env.ECR_REGISTRY_URL = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
-                    }
-                }
-            }
-        }
+//         stage('Prepare Gradle Wrapper') {
+//             steps {
+//                 sh 'chmod +x gradlew'
+//             }
+//         }
+//
+//         stage('Set Environment Variables') {
+//             steps {
+//                 script {
+//                     def appName = sh(
+//                         script: "./gradlew -q printProjectName",
+//                         returnStdout: true
+//                     ).trim()
+//                     env.APP_NAME = appName
+//
+//                     withCredentials([file(credentialsId: 'deefato-AI-service-env', variable: 'ENV_FILE')]) {
+//                         def props = readProperties file: ENV_FILE
+//                         env.ECR_REPOSITORY = props.ECR_REPOSITORY
+//                         env.AWS_ACCOUNT_ID = props.AWS_ACCOUNT_ID
+//                         env.AWS_REGION = props.AWS_REGION
+//                         env.ECR_REGISTRY_URL = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
+//                     }
+//                 }
+//             }
+//         }
 
         stage('Set Version & Docker Image Name') {
             steps {
@@ -89,6 +91,14 @@ pipeline {
                         PROD_BUILD = true
                     }
 
+                    withCredentials([file(credentialsId: 'deefato-AI-service-env', variable: 'ENV_FILE')]) {
+                        def props = readProperties file: ENV_FILE
+                        env.ECR_REPOSITORY = props.ECR_REPOSITORY
+                        env.AWS_ACCOUNT_ID = props.AWS_ACCOUNT_ID
+                        env.AWS_REGION = props.AWS_REGION
+                        env.ECR_REGISTRY_URL = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
+                    }
+
                     DOCKER_IMAGE_NAME = "${env.ECR_REGISTRY_URL}/${env.ECR_REPOSITORY}:${env.APP_NAME}-${APP_VERSION}"
 
                     sh "echo 'App name is: ${env.APP_NAME}'"
@@ -98,11 +108,11 @@ pipeline {
             }
         }
 
-        stage('Build & Test Application') {
-            steps {
-                sh "./gradlew clean build"
-            }
-        }
+//         stage('Build & Test Application') {
+//             steps {
+//                 sh "./gradlew clean build"
+//             }
+//         }
 
         stage('Login to ECR') {
             steps {
@@ -117,7 +127,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build "${DOCKER_IMAGE_NAME}"
+                    docker.build("${DOCKER_IMAGE_NAME}", "--build-arg APP_NAME=${APP_NAME} .")
                 }
             }
         }
