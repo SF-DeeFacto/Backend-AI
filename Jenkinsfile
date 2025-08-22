@@ -52,6 +52,12 @@ pipeline {
             }
         }
 
+        stage('Prepare Gradle Wrapper') {
+            steps {
+                sh 'chmod +x gradlew'
+            }
+        }
+
         stage('Set Environment Variables') {
             steps {
                 script {
