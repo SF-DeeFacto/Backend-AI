@@ -7,18 +7,6 @@ pipeline {
     agent any
 
     parameters {
-        gitParameter branch: '',
-                    branchFilter: '.*',
-                    defaultValue: 'origin/dev',
-                    description: '빌드할 Git 브랜치 또는 태그를 선택하세요.',
-                    listSize: '0',
-                    name: 'TAG',
-                    quickFilterEnabled: false,
-                    selectedValue: 'DEFAULT',
-                    sortMode: 'DESCENDING_SMART',
-                    tagFilter: '*',
-                    type: 'PT_BRANCH_TAG'
-
         booleanParam defaultValue: false, description: '릴리스 빌드 여부 (Docker 이미지에 -RELEASE 태그 추가)', name: 'RELEASE'
     }
 
@@ -34,57 +22,28 @@ pipeline {
         retry(2)
     }
 
-//     tools {
-//         gradle 'Gradle 8.14.2'
-//         jdk 'OpenJDK 17'
-//     }
-
     stages{
 
         stage('Checkout Source Code') {
             steps {
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: "${params.TAG.replace('origin/', '')}"]],
-                    doGenerateSubmoduleConfigurations: false,
-                    extensions: [],
-                    submoduleCfg: [],
-                    userRemoteConfigs: [[url: "${GIT_URL}"]]
-                ])
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "refs/tags/*"]], // 태그 감지
+                        doGenerateSubmoduleConfigurations: false,
+                        extensions: [],
+                        submoduleCfg: [],
+                        userRemoteConfigs: [[
+                            url: "${GIT_URL}",
+                            refspec: "+refs/tags/*:refs/tags/*" // 태그 가져오기
+                        ]]
+                    ])
             }
         }
-
-//         stage('Prepare Gradle Wrapper') {
-//             steps {
-//                 sh 'chmod +x gradlew'
-//             }
-//         }
-//
-//         stage('Set Environment Variables') {
-//             steps {
-//                 script {
-//                     def appName = sh(
-//                         script: "./gradlew -q printProjectName",
-//                         returnStdout: true
-//                     ).trim()
-//                     env.APP_NAME = appName
-//
-//                     withCredentials([file(credentialsId: 'deefato-AI-service-env', variable: 'ENV_FILE')]) {
-//                         def props = readProperties file: ENV_FILE
-//                         env.ECR_REPOSITORY = props.ECR_REPOSITORY
-//                         env.AWS_ACCOUNT_ID = props.AWS_ACCOUNT_ID
-//                         env.AWS_REGION = props.AWS_REGION
-//                         env.ECR_REGISTRY_URL = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
-//                     }
-//                 }
-//             }
-//         }
 
         stage('Set Version & Docker Image Name') {
             steps {
                 script {
-                    def versionFromTag = params.TAG.replace('origin/', '').trim()
-                    APP_VERSION = "${versionFromTag}"
+                    APP_VERSION = sh(script: "git describe --tags --abbrev=0", returnStdout: true).trim()
 
                     if (params.RELEASE) {
                         APP_VERSION += '-RELEASE'
@@ -108,11 +67,6 @@ pipeline {
             }
         }
 
-//         stage('Build & Test Application') {
-//             steps {
-//                 sh "./gradlew clean build"
-//             }
-//         }
 
         stage('Login to ECR') {
             steps {

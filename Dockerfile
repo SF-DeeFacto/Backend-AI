@@ -29,6 +29,7 @@ RUN gradle build -x test --no-daemon
 # 런타임 단계 (Runtime Stage)
 # ========================================
 FROM eclipse-temurin:17-jre-alpine
+
 LABEL maintainer="deefacto-AI"
 LABEL description="AI service for Deefacto Platform"
 
