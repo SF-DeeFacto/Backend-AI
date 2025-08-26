@@ -47,38 +47,42 @@ pipeline {
             steps {
                 script {
                     sshagent(credentials: [env.SSH_KEY_ID]) {
-                        // 자동 태그 증가 스크립트
-                        APP_VERSION = sh(
-                            script: '''
-                                set -e
-                                git fetch --tags
+                        sh '''
+                            set -e
+                            git fetch --tags
 
-                                # 최신 태그 가져오기 (없으면 v0.0.0으로 시작)
-                                LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-                                echo "Latest tag: $LATEST_TAG"
+                            # 최신 태그 가져오기 (없으면 v0.0.0으로 시작)
+                            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+                            echo "Latest tag: $LATEST_TAG"
 
-                                VERSION=${LATEST_TAG#v}
-                                IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+                            # "v" 제거
+                            VERSION=$(echo "$LATEST_TAG" | sed 's/^v//')
 
-                                # PATCH 버전 자동 증가
-                                PATCH=$((PATCH+1))
-                                NEW_TAG="v${MAJOR}.${MINOR}.${PATCH}"
-                                echo "New tag will be: $NEW_TAG"
+                            # MAJOR, MINOR, PATCH 분리 (POSIX 방식)
+                            MAJOR=$(echo "$VERSION" | cut -d. -f1)
+                            MINOR=$(echo "$VERSION" | cut -d. -f2)
+                            PATCH=$(echo "$VERSION" | cut -d. -f3)
 
-                                # Git user 설정
-                                git config user.name jenkins
-                                git config user.email jenkins@sf-deefacto.com
+                            # PATCH 버전 증가
+                            PATCH=$(expr "$PATCH" + 1)
+                            NEW_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+                            echo "New tag will be: $NEW_TAG"
 
-                                # 새 태그 생성 & 원격 푸시
-                                git tag $NEW_TAG
-                                git push origin $NEW_TAG
+                            # Git user 설정
+                            git config user.name jenkins
+                            git config user.email jenkins@sf-deefacto.com
 
-                                # 최종 태그 반환
-                                echo $NEW_TAG
-                            ''',
-                            returnStdout: true
-                        ).trim()
+                            # 새 태그 생성 & 원격 푸시
+                            git tag "$NEW_TAG"
+                            git push origin "$NEW_TAG"
+
+                            # 환경 변수 파일 생성
+                            echo "APP_VERSION=${NEW_TAG}" > $WORKSPACE/tag_info.env
+                        '''
                     }
+
+                    // tag_info.env에서 APP_VERSION 읽기
+                    APP_VERSION = sh(script: "grep APP_VERSION $WORKSPACE/tag_info.env | cut -d= -f2", returnStdout: true).trim()
 
                     if (params.RELEASE) {
                         APP_VERSION += "-RELEASE"
