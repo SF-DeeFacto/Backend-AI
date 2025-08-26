@@ -44,17 +44,19 @@ public class ReportController {
         // 조건 검색
         if((type != null && !type.trim().isEmpty()) || startDate != null || endDate != null) {
             return ApiResponseDto.createOk(
-                    reportService.serchReports(employeeId,scopes,type,start,end,pageable)
+                    reportService.serchReports(employeeId,scopes,type,start,end,pageable),
+                    "리포트 조회 요청을 성공하였습니다."
             );
         }
         // 전체 조회
         else {
             Page<Report> reportList = reportService.getReportsByRoleAndEmployeeId(scopes, employeeId, pageable);
-            return ApiResponseDto.createOk(reportList);
+            return ApiResponseDto.createOk(reportList, "전체 리포트 조회 요청을 성공하였습니디.");
         }
     }
 
 
+    // 리포트 다운로드
     @GetMapping("/download/{fileName}")
     public ResponseEntity<?> downloadPdf(
             @PathVariable String fileName,
@@ -80,5 +82,15 @@ public class ReportController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(new InputStreamResource(fileStream));
+    }
+
+    // 리포트 삭제
+    @DeleteMapping(value = "/{fileId}")
+    public ApiResponseDto<String> deleteFile(
+            @RequestHeader("X-Employee-Id") String employeeId,
+            @PathVariable Long fileId
+    ) {
+        reportService.deleteFile(employeeId, fileId);
+        return ApiResponseDto.defaultOk();
     }
 }
