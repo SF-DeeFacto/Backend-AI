@@ -10,17 +10,17 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
-import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.*;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,6 +28,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ReportService {
@@ -35,10 +36,6 @@ public class ReportService {
     private final ReportRepository reportRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ReactiveRedisTemplate<String, String> redisTemplate;
-
-//    public ReportService(ReactiveRedisTemplate redisTemplate) {
-//        this.redisTemplate = redisTemplate;
-//    }
 
 
     @Value("${cloud.aws.s3.bucket}")
@@ -111,6 +108,48 @@ public class ReportService {
 
         ResponseInputStream<?> s3ObjectInputStream = s3Client.getObject(getObjectRequest);
         return s3ObjectInputStream;
+    }
+
+    // 리포트 삭제
+    @Transactional
+    public void deleteFile(String employeeId, Long fileId) {
+        log.info("fileId:"+fileId);
+        // 해당 파일 찾기
+        Report report = reportRepository.findById(fileId)
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+
+        // ]삭제 권한 검증 (조회된 정보를 사용)
+        if (!"비정기".equals(report.getType()) || !Objects.equals(employeeId, report.getEmployeeId())) {
+            // 권한이 없으면 예외 발생 -> @ControllerAdvice가 처리
+            log.info("권한이 없습니다");
+            throw new CustomException(ErrorCode.FORBIDDEN);
+        }
+
+        String fileName = report.getFileName();
+        log.info("fileName:"+fileName);
+
+        try {
+            // S3에서 report 삭제
+            DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(fileName)
+                    .build();
+
+            s3Client.deleteObject(deleteObjectRequest);
+
+            // report 메타 데이터 삭제
+            reportRepository.deleteById(fileId);
+
+            log.info(fileName+"이 성공적으로 삭제되었습니다.");
+
+        } catch (NoSuchKeyException e) {
+            // S3에 파일이 이미 없더라도 DB 데이터는 삭제
+            reportRepository.delete(report);
+            log.warn("S3에 파일이 존재하지 않지만 DB 메타데이터는 삭제했습니다. fileId: {}", fileId);
+        } catch (S3Exception e) {
+            log.error("S3 파일 삭제 중 오류 발생. AWS 에러 코드: {}", e.awsErrorDetails().errorCode(), e);
+            throw new CustomException(ErrorCode.INTERNAL_ERROR);
+        }
     }
 
     public boolean exists(String key) {

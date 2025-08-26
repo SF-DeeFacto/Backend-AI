@@ -1,13 +1,10 @@
 package com.deefacto.ai_service.common.dto;
 
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.ToString;
 
-@ToString
 @Getter
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
+@NoArgsConstructor
 public class ApiResponseDto<T> {
     private String code;
     private String message;
@@ -24,18 +21,19 @@ public class ApiResponseDto<T> {
         this.data = data;
     }
 
-    public static <T> ApiResponseDto<T> createOk(T data) {
-        return new ApiResponseDto<>(
-                "OK",
-                "요청 성공",
-                data);
+    public static <T> ApiResponseDto<T> createOk(T data, String message) {
+        return new ApiResponseDto<>("SUCCESS", message, data);
     }
 
     public static ApiResponseDto<String> defaultOk() {
-        return ApiResponseDto.createOk(null);
+        return ApiResponseDto.createOk(null, "요청이 성공하였습니다.");
     }
 
-    public static ApiResponseDto<String> createError(String errorCode, String message) {
-        return new ApiResponseDto<>(errorCode, message);
+    public static ApiResponseDto<String> createError(String code, String message) {
+        return new ApiResponseDto<>(code, message);
+    }
+
+    public static <T> ApiResponseDto<T> createError(String code, String message, T data) {
+        return new ApiResponseDto<>(code, message, data);
     }
 }
