@@ -1,0 +1,98 @@
+def APP_VERSION
+def DOCKER_IMAGE_NAME
+def PROD_BUILD = false
+def APP_NAME = "ai_service" // 기본값, 필요시 변경 가능
+
+pipeline {
+    agent any
+
+    parameters {
+        booleanParam defaultValue: false, description: '릴리스 빌드 여부 (Docker 이미지에 -RELEASE 태그 추가)', name: 'RELEASE'
+    }
+
+    environment {
+        GIT_URL = "https://github.com/SF-DeeFacto/Backend-AI.git"
+        AWS_CREDENTIALS = 'jenkins-ecr'
+    }
+
+    options {
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: "30", artifactNumToKeepStr: "30"))
+        timeout(time: 60, unit: 'MINUTES')
+        retry(2)
+    }
+
+    stages{
+
+        stage('Checkout Source Code') {
+            steps {
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "refs/tags/*"]], // 태그 감지
+                        doGenerateSubmoduleConfigurations: false,
+                        extensions: [],
+                        submoduleCfg: [],
+                        userRemoteConfigs: [[
+                            url: "${GIT_URL}",
+                            refspec: "+refs/tags/*:refs/tags/*" // 태그 가져오기
+                        ]]
+                    ])
+            }
+        }
+
+        stage('Set Version & Docker Image Name') {
+            steps {
+                script {
+                    APP_VERSION = sh(script: "git describe --tags --abbrev=0", returnStdout: true).trim()
+
+                    if (params.RELEASE) {
+                        APP_VERSION += '-RELEASE'
+                        PROD_BUILD = true
+                    }
+
+                    withCredentials([file(credentialsId: 'deefato-AI-service-env', variable: 'ENV_FILE')]) {
+                        def props = readProperties file: ENV_FILE
+                        env.ECR_REPOSITORY = props.ECR_REPOSITORY
+                        env.AWS_ACCOUNT_ID = props.AWS_ACCOUNT_ID
+                        env.AWS_REGION = props.AWS_REGION
+                        env.ECR_REGISTRY_URL = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
+                    }
+
+                    DOCKER_IMAGE_NAME = "${env.ECR_REGISTRY_URL}/${env.ECR_REPOSITORY}:${APP_NAME}-${APP_VERSION}"
+
+                    sh "echo 'App name is: ${env.APP_NAME}'"
+                    sh "echo 'ECR Repository is: ${env.ECR_REPOSITORY}'"
+                    sh "echo 'DOCKER_IMAGE_NAME is ${DOCKER_IMAGE_NAME}'"
+                }
+            }
+        }
+
+
+        stage('Login to ECR') {
+            steps {
+                script {
+                    withAWS(credentials: AWS_CREDENTIALS, region: env.AWS_REGION) {
+                        sh "aws ecr get-login-password --region ${env.AWS_REGION} | docker login --username AWS --password-stdin ${env.ECR_REGISTRY_URL}"
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    docker.build("${DOCKER_IMAGE_NAME}", "--build-arg APP_NAME=${APP_NAME} .")
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    sh "docker push ${DOCKER_IMAGE_NAME}"
+                    sh "docker rmi ${DOCKER_IMAGE_NAME}"
+                }
+            }
+        }
+    }
+}
