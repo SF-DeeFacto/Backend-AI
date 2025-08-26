@@ -66,6 +66,12 @@ pipeline {
                             # PATCH 버전 증가
                             PATCH=$(expr "$PATCH" + 1)
                             NEW_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+
+                            while git rev-parse "$NEW_TAG" >/dev/null 2>&1; do
+                                PATCH=$((PATCH + 1))
+                                NEW_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+                            done
+
                             echo "New tag will be: $NEW_TAG"
 
                             # Git user 설정
