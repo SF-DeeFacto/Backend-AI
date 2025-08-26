@@ -46,30 +46,46 @@ pipeline {
         stage('Set Version & Docker Image Name') {
             steps {
                 script {
-                    // [변경] 최신 태그 fetch 후 자동 버전 증가
-                    sh "git fetch --tags"
+                    sshagent(credentials: [env.SSH_KEY_ID]) {
+                        // 자동 태그 증가 스크립트
+                        APP_VERSION = sh(
+                            script: '''
+                                set -e
+                                git fetch --tags
 
-                    def lastTag = sh(script: "git describe --tags --abbrev=0 || echo v1.0.0", returnStdout: true).trim()
-                    def (major, minor, patch) = lastTag.replace('v','').tokenize('.')
-                    patch = (patch as int) + 1
-                    APP_VERSION = "v${major}.${minor}.${patch}"
+                                # 최신 태그 가져오기 (없으면 v0.0.0으로 시작)
+                                LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+                                echo "Latest tag: $LATEST_TAG"
+
+                                VERSION=${LATEST_TAG#v}
+                                IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+
+                                # PATCH 버전 자동 증가
+                                PATCH=$((PATCH+1))
+                                NEW_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+                                echo "New tag will be: $NEW_TAG"
+
+                                # Git user 설정
+                                git config user.name jenkins
+                                git config user.email jenkins@sf-deefacto.com
+
+                                # 새 태그 생성 & 원격 푸시
+                                git tag $NEW_TAG
+                                git push origin $NEW_TAG
+
+                                # 최종 태그 반환
+                                echo $NEW_TAG
+                            ''',
+                            returnStdout: true
+                        ).trim()
+                    }
 
                     if (params.RELEASE) {
-                        APP_VERSION += '-RELEASE'
+                        APP_VERSION += "-RELEASE"
                         PROD_BUILD = true
                     }
 
-                    // [변경] Jenkins에서 태그 생성 및 원격 푸시
-                    sshagent(credentials: [env.SSH_KEY_ID]) {
-                        sh """
-                            git config user.name "jenkins"
-                            git config user.email "jenkins@sf-deefacto.com"
-                            git tag ${APP_VERSION}
-                            git push origin ${APP_VERSION}
-                        """
-                    }
-
-                    // [변경] 환경 파일 읽기
+                    // 환경 파일 읽기
                     withCredentials([file(credentialsId: 'deefato-AI-service-env', variable: 'ENV_FILE')]) {
                         def props = readProperties file: ENV_FILE
                         env.ECR_REPOSITORY = props.ECR_REPOSITORY
@@ -80,7 +96,7 @@ pipeline {
 
                     DOCKER_IMAGE_NAME = "${env.ECR_REGISTRY_URL}/${env.ECR_REPOSITORY}:${APP_NAME}-${APP_VERSION}"
 
-                    sh "echo 'App name is: ${env.APP_NAME}'"
+                    sh "echo 'App version is: ${APP_VERSION}'"
                     sh "echo 'ECR Repository is: ${env.ECR_REPOSITORY}'"
                     sh "echo 'DOCKER_IMAGE_NAME is ${DOCKER_IMAGE_NAME}'"
                 }
