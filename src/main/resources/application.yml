@@ -6,8 +6,11 @@ spring:
     import: "optional:dotenv:"
 
   datasource:
-    url: jdbc:mysql://192.168.55.180:3306/test_db?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-    username: test01
+#    url: jdbc:mysql://222.235.142.221:1115/test_db?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+#    username: test01
+#    password: 1234
+    url: jdbc:mysql://localhost:3307/deefacto-report?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: root
     password: 1234
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
