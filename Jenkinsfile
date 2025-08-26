@@ -11,8 +11,9 @@ pipeline {
     }
 
     environment {
-        GIT_URL = "https://github.com/SF-DeeFacto/Backend-AI.git"
+        GIT_URL = "git@github.com:SF-DeeFacto/Backend-AI.git"
         AWS_CREDENTIALS = 'jenkins-ecr'
+        SSH_KEY_ID = 'jenkins-github-key'
     }
 
     options {
@@ -26,31 +27,50 @@ pipeline {
 
         stage('Checkout Source Code') {
             steps {
+                sshagent(credentials: [env.SSH_KEY_ID]) { // [변경] SSH 키로 인증
                     checkout([
                         $class: 'GitSCM',
-                        branches: [[name: "refs/tags/*"]], // 태그 감지
+                        branches: [[name: "origin/dev"]], // [변경] origin/dev 명시
                         doGenerateSubmoduleConfigurations: false,
                         extensions: [],
-                        submoduleCfg: [],
                         userRemoteConfigs: [[
                             url: "${GIT_URL}",
-                            refspec: "+refs/tags/*:refs/tags/*" // 태그 가져오기
+                            // [변경] 최신 태그까지 가져오기
+                            refspec: "+refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*"
                         ]]
                     ])
+                }
             }
         }
 
         stage('Set Version & Docker Image Name') {
             steps {
                 script {
-                    APP_VERSION = sh(script: "git describe --tags --abbrev=0", returnStdout: true).trim()
+                    // [변경] 최신 태그 fetch 후 자동 버전 증가
+                    sh "git fetch --tags"
+
+                    def lastTag = sh(script: "git describe --tags --abbrev=0 || echo v1.0.0", returnStdout: true).trim()
+                    def (major, minor, patch) = lastTag.replace('v','').tokenize('.')
+                    patch = (patch as int) + 1
+                    APP_VERSION = "v${major}.${minor}.${patch}"
 
                     if (params.RELEASE) {
                         APP_VERSION += '-RELEASE'
                         PROD_BUILD = true
                     }
 
-                    withCredentials([file(credentialsId: 'deefato-AI-service-env', variable: 'ENV_FILE')]) {
+                    // [변경] Jenkins에서 태그 생성 및 원격 푸시
+                    sshagent(credentials: [env.SSH_KEY_ID]) {
+                        sh """
+                            git config user.name "jenkins"
+                            git config user.email "jenkins@sf-deefacto.com"
+                            git tag ${APP_VERSION}
+                            git push origin ${APP_VERSION}
+                        """
+                    }
+
+                    // [변경] 환경 파일 읽기
+                    withCredentials([file(credentialsId: 'deefacto-AI-service-env', variable: 'ENV_FILE')]) {
                         def props = readProperties file: ENV_FILE
                         env.ECR_REPOSITORY = props.ECR_REPOSITORY
                         env.AWS_ACCOUNT_ID = props.AWS_ACCOUNT_ID
