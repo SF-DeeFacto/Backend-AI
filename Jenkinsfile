@@ -70,7 +70,7 @@ pipeline {
                     }
 
                     // [변경] 환경 파일 읽기
-                    withCredentials([file(credentialsId: 'deefacto-AI-service-env', variable: 'ENV_FILE')]) {
+                    withCredentials([file(credentialsId: 'deefato-AI-service-env', variable: 'ENV_FILE')]) {
                         def props = readProperties file: ENV_FILE
                         env.ECR_REPOSITORY = props.ECR_REPOSITORY
                         env.AWS_ACCOUNT_ID = props.AWS_ACCOUNT_ID
