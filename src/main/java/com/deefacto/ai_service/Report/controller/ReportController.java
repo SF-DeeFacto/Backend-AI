@@ -93,4 +93,22 @@ public class ReportController {
         reportService.deleteFile(employeeId, fileId);
         return ApiResponseDto.defaultOk();
     }
+
+    // 테스트 리포트 생성 API
+    @PostMapping("/test/generate")
+    public ApiResponseDto<String> generateTestReport(
+            @RequestHeader("X-Employee-Id") String employeeId
+    ) {
+        reportService.generateTestReport();
+        return ApiResponseDto.createOk(null, "테스트 리포트 생성이 완료되었습니다.");
+    }
+
+    // 월간 리포트 생성 API (테스트용)
+    @PostMapping("/monthly/generate")
+    public ApiResponseDto<String> generateMonthlyReport(
+            @RequestHeader("X-Employee-Id") String employeeId
+    ) {
+        reportService.generateMonthlyReport();
+        return ApiResponseDto.createOk(null, "월간 리포트 생성이 완료되었습니다.");
+    }
 }

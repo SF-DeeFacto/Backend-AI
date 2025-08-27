@@ -40,12 +40,26 @@ dependencies {
 	// AWS SDK v2 - S3
     implementation platform('software.amazon.awssdk:bom:2.20.110')
     implementation 'software.amazon.awssdk:s3'
+    
+    // AWS SDK v2 - Core for signing
+    implementation 'software.amazon.awssdk:auth'
+    implementation 'software.amazon.awssdk:http-client-spi'
+    implementation 'software.amazon.awssdk:apache-client'
+    
+    // HTTP Client for Bedrock API
+    implementation 'org.apache.httpcomponents:httpclient:4.5.14'
 
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'mysql:mysql-connector-java:8.0.33'
 
 	// Redis 의존성
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	
+	// JSON 처리
+	implementation 'com.fasterxml.jackson.core:jackson-databind'
+	
+	// HTTP 클라이언트
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 }
 
 // build.gradle 파일 하단에 추가

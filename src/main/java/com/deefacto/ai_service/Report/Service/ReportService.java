@@ -5,6 +5,7 @@ import com.deefacto.ai_service.Report.Repository.ReportRepository;
 import com.deefacto.ai_service.Report.Repository.ReportSpecs;
 import com.deefacto.ai_service.common.exception.CustomException;
 import com.deefacto.ai_service.common.exception.ErrorCode;
+import com.deefacto.ai_service.common.service.BedrockService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,6 +18,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -36,6 +40,7 @@ public class ReportService {
     private final ReportRepository reportRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ReactiveRedisTemplate<String, String> redisTemplate;
+    private final BedrockService bedrockService;
 
 
     @Value("${cloud.aws.s3.bucket}")
@@ -224,5 +229,83 @@ public class ReportService {
         }
 
         return false;
+    }
+
+    // 스케줄러에서 호출할 메서드들
+    
+    /**
+     * 월간 리포트 생성
+     */
+    @Transactional
+    public void generateMonthlyReport() {
+        log.info("월간 리포트 생성 작업 시작");
+        
+        try {
+            // 월간 리포트 생성 로직
+            LocalDateTime lastMonth = LocalDateTime.now().minusMonths(1);
+            
+            // AWS Bedrock을 사용하여 AI 리포트 생성
+            String aiGeneratedReport = bedrockService.generateReportSummary("월간");
+            log.info("AI 생성 월간 리포트: {}", aiGeneratedReport);
+            
+            // 실제 리포트 생성 로직을 여기에 구현
+            // 예: DB에 저장, 파일 생성 등
+            
+            log.info("월간 리포트 생성 완료: {}", lastMonth.toLocalDate());
+        } catch (Exception e) {
+            log.error("월간 리포트 생성 실패", e);
+            throw new CustomException(ErrorCode.INTERNAL_ERROR);
+        }
+    }
+
+    /**
+     * 테스트 리포트 생성 (AI 기반)
+     */
+    @Transactional
+    public void generateTestReport() {
+        log.info("테스트 리포트 생성 작업 시작");
+        
+        try {
+            LocalDateTime now = LocalDateTime.now();
+            
+            // AWS Bedrock을 사용하여 AI 테스트 리포트 생성
+            String aiGeneratedReport = bedrockService.generateReportSummary("테스트");
+            log.info("AI 생성 테스트 리포트 길이: {}", aiGeneratedReport.length());
+            log.info("AI 생성 테스트 리포트 내용: {}", 
+                aiGeneratedReport.length() > 500 ? aiGeneratedReport.substring(0, 500) + "..." : aiGeneratedReport);
+            
+            // AI 응답이 유효한 경우 리포트로 저장
+            if (aiGeneratedReport != null && !aiGeneratedReport.trim().isEmpty() 
+                && !aiGeneratedReport.contains("에이전트 응답을 파싱할 수 없습니다") 
+                && !aiGeneratedReport.contains("파싱 실패")) {
+                
+                // 리포트 파일명 생성 (현재 시각 기반)
+                String fileName = "ai-test-report-" + now.format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + ".txt";
+                
+                // Report 엔티티 생성
+                Report testReport = Report.builder()
+                    .fileName(fileName)
+                    .role("ADMIN") // 관리자 권한
+                    .type("테스트")
+                    .employeeId("AI-System")
+                    .createdAt(now)
+                    .build();
+                
+                // 데이터베이스에 저장
+                Report savedReport = reportRepository.save(testReport);
+                log.info("AI 테스트 리포트 저장 완료 - ID: {}, 파일명: {}", 
+                    savedReport.getId(), savedReport.getFileName());
+                log.info("AI 생성 리포트 내용:\n{}", aiGeneratedReport);
+                
+            } else {
+                log.warn("AI 응답이 유효하지 않아 리포트를 저장하지 않습니다: {}", aiGeneratedReport);
+            }
+            
+            log.info("테스트 리포트 생성 완료: {}", now.toLocalDate());
+            
+        } catch (Exception e) {
+            log.error("테스트 리포트 생성 실패", e);
+            throw new CustomException(ErrorCode.INTERNAL_ERROR);
+        }
     }
 }
