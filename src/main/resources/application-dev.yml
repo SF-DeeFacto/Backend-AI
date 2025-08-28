@@ -2,4 +2,3 @@ spring:
   config:
     import:
       - file:/app/config/application-dev.yml
-      - file:/app/secret/application-secret.yml
