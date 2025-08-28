@@ -23,6 +23,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -144,25 +145,295 @@ public class BedrockService {
     }
 
     /**
-     * 리포트 생성용 프롬프트
+     * 리포트 생성용 프롬프트 (JSON 데이터 포함 + Lambda API 호출)
+     */
+    public String generateReportSummary(String reportType, Map<String, Object> requestData) {
+        log.info("리포트 생성 요청 - 타입: {}, 데이터: {}", reportType, requestData);
+        
+        String lambdaResult = "";
+        String bedrockPrompt;
+        
+        // Lambda API 호출
+        if (requestData != null && !requestData.isEmpty()) {
+            try {
+                lambdaResult = callLambdaAPI(requestData);
+                log.info("Lambda API 응답 길이: {}", lambdaResult.length());
+                log.info("Lambda API 응답 샘플: {}", 
+                    lambdaResult.length() > 200 ? lambdaResult.substring(0, 200) + "..." : lambdaResult);
+            } catch (Exception e) {
+                log.warn("Lambda API 호출 실패: {}", e.getMessage());
+                lambdaResult = "Lambda API 호출 실패: " + e.getMessage();
+            }
+        }
+        
+        // Bedrock 프롬프트 생성
+        if (requestData != null && !requestData.isEmpty()) {
+            try {
+                String jsonData = objectMapper.writeValueAsString(requestData);
+                
+                // Lambda 결과를 포함한 프롬프트 생성
+                if (!lambdaResult.isEmpty() && !lambdaResult.startsWith("Lambda API 호출 실패")) {
+                    bedrockPrompt = String.format(jsonData);
+                } else {
+                    bedrockPrompt = String.format(jsonData);
+                }
+            } catch (Exception e) {
+                log.warn("JSON 변환 실패, 기본 프롬프트 사용: {}", e.getMessage());
+                bedrockPrompt = String.format(
+                    "요청 데이터: %s를 기반으로 %s 리포트를 생성해주세요. (생성 시간: %s)",
+                    requestData.toString(),
+                    reportType,
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                );
+            }
+        } else {
+            // 기존 로직 (데이터가 없는 경우)
+            bedrockPrompt = String.format(
+                "",
+                reportType,
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            );
+        }
+        
+        log.info("생성된 프롬프트: {}", bedrockPrompt.length() > 200 ? bedrockPrompt.substring(0, 200) + "..." : bedrockPrompt);
+        return generateText(bedrockPrompt);
+    }
+
+    /**
+     * Lambda API 호출
+     */
+    private String callLambdaAPI(Map<String, Object> requestData) throws IOException {
+        String lambdaUrl = "http://localhost:8085/reports/lambda/test/sync?functionName=report-graph-lambda";
+        
+        HttpPost request = new HttpPost(lambdaUrl);
+        request.setHeader("Content-Type", "application/json");
+        request.setHeader("Accept", "application/json");
+        request.setHeader("X-Employee-Id", "AI-System");
+        
+        try {
+            // Request Body 설정
+            String jsonBody = objectMapper.writeValueAsString(requestData);
+            request.setEntity(new StringEntity(jsonBody, StandardCharsets.UTF_8));
+            
+            log.info("Lambda API 호출 - URL: {}", lambdaUrl);
+            log.info("Lambda API 요청 Body: {}", jsonBody);
+            
+            try (CloseableHttpResponse response = httpClient.execute(request)) {
+                int statusCode = response.getStatusLine().getStatusCode();
+                String responseBody = EntityUtils.toString(response.getEntity());
+                
+                if (statusCode >= 200 && statusCode < 300) {
+                    log.info("Lambda API 호출 성공 - Status: {}", statusCode);
+                    return parseLambdaResponse(responseBody);
+                } else {
+                    log.error("Lambda API 호출 실패 - Status: {}, Body: {}", statusCode, responseBody);
+                    throw new IOException("Lambda API 호출 실패: " + statusCode + " - " + responseBody);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Lambda API 호출 중 오류 발생", e);
+            throw new IOException("Lambda API 호출 실패: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Lambda API 응답 파싱 (구조적 데이터 추출)
+     */
+    private String parseLambdaResponse(String responseBody) {
+        try {
+            log.info("Lambda 응답 파싱 시작 - 길이: {}", responseBody.length());
+            log.info("Lambda 원본 응답: {}", responseBody);
+            
+            // JSON 응답 파싱 시도
+            JsonNode jsonNode = objectMapper.readTree(responseBody);
+            StringBuilder parsedData = new StringBuilder();
+            
+            // API 응답 구조에 따라 데이터 추출
+            if (jsonNode.has("data")) {
+                JsonNode dataNode = jsonNode.get("data");
+                if (dataNode.isTextual()) {
+                    String result = dataNode.asText();
+                    log.info("Lambda data 필드에서 텍스트 추출: {}", 
+                        result.length() > 100 ? result.substring(0, 100) + "..." : result);
+                    parsedData.append("Lambda 분석 결과:\n").append(result);
+                } else if (dataNode.isObject()) {
+                    // data가 객체인 경우 구조적으로 파싱
+                    parsedData.append("📊 Lambda 분석 결과:\n\n");
+                    parsedData.append(parseStructuredData(dataNode));
+                } else if (dataNode.isArray()) {
+                    // data가 배열인 경우
+                    parsedData.append("📊 Lambda 분석 결과 (목록):\n\n");
+                    for (int i = 0; i < dataNode.size(); i++) {
+                        parsedData.append(String.format("%d. %s\n", i + 1, parseStructuredData(dataNode.get(i))));
+                    }
+                }
+            }
+            
+            // message 필드 확인
+            if (jsonNode.has("message")) {
+                String message = jsonNode.get("message").asText();
+                log.info("Lambda message 필드 추출: {}", message);
+                if (parsedData.length() > 0) {
+                    parsedData.append("\n\n📝 메시지: ").append(message);
+                } else {
+                    parsedData.append("📝 Lambda 메시지: ").append(message);
+                }
+            }
+            
+            // result 필드 확인
+            if (jsonNode.has("result")) {
+                JsonNode resultNode = jsonNode.get("result");
+                if (resultNode.isTextual()) {
+                    String result = resultNode.asText();
+                    log.info("Lambda result 필드에서 텍스트 추출: {}", result);
+                    if (parsedData.length() > 0) {
+                        parsedData.append("\n\n🔍 결과: ").append(result);
+                    } else {
+                        parsedData.append("🔍 Lambda 결과: ").append(result);
+                    }
+                } else {
+                    String result = parseStructuredData(resultNode);
+                    if (parsedData.length() > 0) {
+                        parsedData.append("\n\n🔍 결과:\n").append(result);
+                    } else {
+                        parsedData.append("🔍 Lambda 결과:\n").append(result);
+                    }
+                }
+            }
+            
+            // success/status 등 추가 필드 확인
+            if (jsonNode.has("success")) {
+                boolean success = jsonNode.get("success").asBoolean();
+                parsedData.append("\n\n✅ 처리 상태: ").append(success ? "성공" : "실패");
+            }
+            
+            if (jsonNode.has("status")) {
+                String status = jsonNode.get("status").asText();
+                parsedData.append("\n\n📊 상태: ").append(status);
+            }
+            
+            // 추가 메타데이터 파싱
+            if (jsonNode.has("timestamp")) {
+                String timestamp = jsonNode.get("timestamp").asText();
+                parsedData.append("\n\n⏰ 생성 시간: ").append(timestamp);
+            }
+            
+            if (jsonNode.has("executionTime")) {
+                String executionTime = jsonNode.get("executionTime").asText();
+                parsedData.append("\n\n⚡ 실행 시간: ").append(executionTime);
+            }
+            
+            // 파싱된 데이터가 있으면 반환, 없으면 전체 응답을 구조적으로 파싱
+            if (parsedData.length() > 0) {
+                String finalResult = parsedData.toString();
+                log.info("구조적 파싱 완료 - 결과 길이: {}", finalResult.length());
+                return finalResult;
+            } else {
+                // 전체 JSON을 구조적으로 파싱
+                String structuredResult = "📊 Lambda 전체 응답:\n\n" + parseStructuredData(jsonNode);
+                log.info("전체 구조적 파싱 완료 - 결과 길이: {}", structuredResult.length());
+                return structuredResult;
+            }
+            
+        } catch (Exception e) {
+            log.warn("Lambda 응답 JSON 파싱 실패, 원본 텍스트 반환: {}", e.getMessage());
+            return "📋 Lambda 원본 응답:\n" + responseBody;
+        }
+    }
+    
+    /**
+     * JSON 객체를 구조적으로 파싱하여 읽기 쉬운 형태로 변환
+     */
+    private String parseStructuredData(JsonNode node) {
+        StringBuilder result = new StringBuilder();
+        
+        if (node.isObject()) {
+            Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
+            while (fields.hasNext()) {
+                Map.Entry<String, JsonNode> entry = fields.next();
+                String key = entry.getKey();
+                JsonNode value = entry.getValue();
+                
+                // 키를 읽기 쉬운 형태로 변환
+                String displayKey = formatKey(key);
+                
+                if (value.isTextual()) {
+                    result.append("• ").append(displayKey).append(": ").append(value.asText()).append("\n");
+                } else if (value.isNumber()) {
+                    result.append("• ").append(displayKey).append(": ").append(value.asText()).append("\n");
+                } else if (value.isBoolean()) {
+                    result.append("• ").append(displayKey).append(": ").append(value.asBoolean() ? "예" : "아니오").append("\n");
+                } else if (value.isArray()) {
+                    result.append("• ").append(displayKey).append(":\n");
+                    for (int i = 0; i < value.size(); i++) {
+                        result.append("  ").append(i + 1).append(". ").append(parseStructuredData(value.get(i))).append("\n");
+                    }
+                } else if (value.isObject()) {
+                    result.append("• ").append(displayKey).append(":\n");
+                    String nestedData = parseStructuredData(value);
+                    // 중첩된 데이터에 들여쓰기 추가
+                    String[] lines = nestedData.split("\n");
+                    for (String line : lines) {
+                        if (!line.trim().isEmpty()) {
+                            result.append("  ").append(line).append("\n");
+                        }
+                    }
+                }
+            }
+        } else if (node.isArray()) {
+            for (int i = 0; i < node.size(); i++) {
+                result.append(i + 1).append(". ").append(parseStructuredData(node.get(i))).append("\n");
+            }
+        } else {
+            result.append(node.asText());
+        }
+        
+        return result.toString();
+    }
+    
+    /**
+     * JSON 키를 읽기 쉬운 형태로 변환
+     */
+    private String formatKey(String key) {
+        // 일반적인 키 변환
+        switch (key.toLowerCase()) {
+            case "timestamp": return "시간";
+            case "temperature": return "온도";
+            case "humidity": return "습도";
+            case "pressure": return "기압";
+            case "zone": return "구역";
+            case "sensor": return "센서";
+            case "sensors": return "센서 목록";
+            case "data": return "데이터";
+            case "result": return "결과";
+            case "status": return "상태";
+            case "success": return "성공 여부";
+            case "message": return "메시지";
+            case "error": return "오류";
+            case "warning": return "경고";
+            case "info": return "정보";
+            case "reportType": return "리포트 유형";
+            case "start": return "시작 시간";
+            case "end": return "종료 시간";
+            case "duration": return "기간";
+            case "count": return "개수";
+            case "average": return "평균";
+            case "max": return "최대값";
+            case "min": return "최소값";
+            case "total": return "총계";
+            default:
+                // camelCase를 읽기 쉬운 형태로 변환
+                return key.replaceAll("([a-z])([A-Z])", "$1 $2")
+                         .substring(0, 1).toUpperCase() + 
+                         key.replaceAll("([a-z])([A-Z])", "$1 $2").substring(1);
+        }
+    }
+
+    /**
+     * 리포트 생성용 프롬프트 (기존 메서드 - 하위 호환성)
      */
     public String generateReportSummary(String reportType) {
-        String prompt = String.format(
-            "{\n" +
-                    "\n" +
-                    "“start”: “2025-08-01”\n" +
-                    "\n" +
-                    "“end”: “2025-08-31”\n" +
-                    "\n" +
-                    "“zoneId”: “a”\n" +
-                    "\n" +
-                    "}",
-            reportType,
-            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-            reportType
-        );
-        
-        return generateText(prompt);
+        return generateReportSummary(reportType, null);
     }
 
     /**
@@ -394,12 +665,18 @@ public class BedrockService {
      */
     private String parseAgentResponse(String responseBody) throws JsonProcessingException {
         try {
-            log.debug("원본 응답 길이: {}", responseBody.length());
-            log.debug("원본 응답 내용: {}", responseBody);
+            log.info("원본 응답 길이: {}", responseBody.length());
+            log.info("응답 내용 샘플 (처음 500자): {}", 
+                responseBody.length() > 500 ? responseBody.substring(0, 500) + "..." : responseBody);
 
             // Bedrock Agent는 스트리밍 응답으로 여러 이벤트를 보냄
             // :message-type event로 시작하는 부분에서 실제 텍스트를 찾음
-            if (responseBody.contains(":message-type event")) {
+            boolean hasMessageType = responseBody.contains(":message-type event");
+            boolean hasBytes = responseBody.contains("bytes");
+            
+            log.info("응답 분석: message-type event 포함={}, bytes 포함={}", hasMessageType, hasBytes);
+            
+            if (hasMessageType) {
                 log.info("message-type event 발견, 파싱 시작");
                 String[] parts = responseBody.split(":message-type event");
                 log.info("분할된 parts 개수: {}", parts.length);
@@ -461,6 +738,41 @@ public class BedrockService {
                             }
                         } catch (Exception e) {
                             log.debug("bytes 패턴 매칭 실패: {}", e.getMessage());
+                        }
+                    }
+                }
+            }
+            
+            // 대안: 응답에서 직접 Base64 패턴을 찾아 디코딩 시도
+            log.info("기본 패턴 매칭 실패, 직접 Base64 텍스트 추출 시도");
+            if (hasBytes) {
+                // 로그에서 확인된 Base64 텍스트 패턴을 직접 추출
+                String[] lines = responseBody.split("\\n");
+                for (String line : lines) {
+                    if (line.contains("bytes") && line.contains("\"")) {
+                        // JSON 형태의 bytes 필드에서 값 추출
+                        int start = line.indexOf("\"bytes\":\"");
+                        if (start != -1) {
+                            start += "\"bytes\":\"".length();
+                            int end = line.indexOf("\"", start);
+                            if (end != -1) {
+                                String base64Text = line.substring(start, end);
+                                log.info("직접 추출한 Base64 텍스트 길이: {}", base64Text.length());
+                                
+                                try {
+                                    byte[] decodedBytes = java.util.Base64.getDecoder().decode(base64Text);
+                                    String decodedText = new String(decodedBytes, "UTF-8");
+                                    log.info("직접 디코딩 성공! 텍스트 길이: {}", decodedText.length());
+                                    log.info("디코딩된 텍스트: {}", 
+                                        decodedText.length() > 200 ? decodedText.substring(0, 200) + "..." : decodedText);
+                                    
+                                    if (decodedText.length() > 20) {
+                                        return cleanAndFormatText(decodedText);
+                                    }
+                                } catch (Exception e) {
+                                    log.warn("직접 Base64 디코딩 실패: {}", e.getMessage());
+                                }
+                            }
                         }
                     }
                 }
@@ -625,42 +937,4 @@ public class BedrockService {
             );
         }
     }
-
-    /**
-     * 실제 AWS Bedrock 호출 메서드 (구현 예시)
-     * 실제 사용시에는 이 메서드를 활성화하고 위의 generateText에서 호출하세요.
-     */
-    /*
-    private String callActualBedrock(String prompt) throws Exception {
-        // AWS SDK를 사용한 실제 Bedrock 호출 로직
-        // 1. AWS 인증 설정
-        // 2. Bedrock Runtime 클라이언트 생성
-        // 3. 모델 호출
-        // 4. 응답 파싱
-        
-        // 예시 코드:
-        // BedrockRuntimeClient client = BedrockRuntimeClient.builder()
-        //     .region(Region.of(region))
-        //     .credentialsProvider(StaticCredentialsProvider.create(
-        //         AwsBasicCredentials.create(accessKey, secretKey)))
-        //     .build();
-        
-        // Map<String, Object> requestBody = new HashMap<>();
-        // requestBody.put("anthropic_version", "bedrock-2023-05-31");
-        // requestBody.put("max_tokens", 1000);
-        // requestBody.put("messages", Arrays.asList(
-        //     Map.of("role", "user", "content", prompt)
-        // ));
-        
-        // InvokeModelRequest request = InvokeModelRequest.builder()
-        //     .modelId(modelId)
-        //     .body(SdkBytes.fromString(objectMapper.writeValueAsString(requestBody), StandardCharsets.UTF_8))
-        //     .build();
-        
-        // InvokeModelResponse response = client.invokeModel(request);
-        // return parseResponse(response.body().asString(StandardCharsets.UTF_8));
-        
-        return "실제 Bedrock 호출 구현 필요";
-    }
-    */
 }

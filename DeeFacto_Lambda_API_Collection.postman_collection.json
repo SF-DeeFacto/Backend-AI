@@ -1,0 +1,143 @@
+{
+  "info": {
+    "name": "DeeFacto AI Service - Lambda API",
+    "description": "AWS Lambda 호출을 위한 API 테스트 컬렉션",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8085"
+    }
+  ],
+  "item": [
+    {
+      "name": "Generate Report - 테스트",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/lambda/generate-report?reportType=테스트",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "lambda", "generate-report"],
+          "query": [
+            {
+              "key": "reportType",
+              "value": "테스트"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"zone\": \"b\",\n  \"start\": \"2025-08-26 13:50:00\",\n  \"end\": \"2025-08-26 13:53:00\",\n  \"metrics\": {\n    \"cpu\": \"15%\",\n    \"memory\": \"60%\",\n    \"responseTime\": \"120ms\"\n  },\n  \"systemStatus\": \"normal\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Generate Report - 월간",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/lambda/generate-report?reportType=월간",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "lambda", "generate-report"],
+          "query": [
+            {
+              "key": "reportType",
+              "value": "월간"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"period\": \"2025-08\",\n  \"departments\": [\"IT\", \"Finance\", \"HR\"],\n  \"includeMetrics\": true,\n  \"format\": \"detailed\",\n  \"analytics\": {\n    \"traffic\": \"15% 증가\",\n    \"uptime\": \"99.8%\",\n    \"satisfaction\": \"4.7/5\"\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "Direct Lambda Invoke",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/lambda/invoke/reportGenerator",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "lambda", "invoke", "reportGenerator"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"action\": \"generateReport\",\n  \"reportType\": \"performance\",\n  \"data\": {\n    \"timeRange\": \"2025-08-20 to 2025-08-27\",\n    \"metrics\": [\"cpu\", \"memory\", \"disk\", \"network\"]\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "Async Lambda Invoke",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/lambda/invoke-async/longRunningTask",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "lambda", "invoke-async", "longRunningTask"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"task\": \"dataAnalysis\",\n  \"dataset\": \"large_dataset_2025\",\n  \"options\": {\n    \"parallel\": true,\n    \"timeout\": 300\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "Bedrock Agent with Lambda",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/lambda/bedrock-agent-lambda?inputText=시스템 성능 리포트를 생성해주세요&actionGroup=reportGenerator",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "lambda", "bedrock-agent-lambda"],
+          "query": [
+            {
+              "key": "inputText",
+              "value": "시스템 성능 리포트를 생성해주세요"
+            },
+            {
+              "key": "actionGroup",
+              "value": "reportGenerator"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reportType\": \"performance\",\n  \"timeFrame\": \"last7days\",\n  \"includeRecommendations\": true\n}"
+        }
+      }
+    }
+  ]
+}
+

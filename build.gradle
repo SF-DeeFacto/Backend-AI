@@ -41,6 +41,9 @@ dependencies {
     implementation platform('software.amazon.awssdk:bom:2.20.110')
     implementation 'software.amazon.awssdk:s3'
     
+    // AWS SDK v2 - Lambda
+    implementation 'software.amazon.awssdk:lambda'
+    
     // AWS SDK v2 - Core for signing
     implementation 'software.amazon.awssdk:auth'
     implementation 'software.amazon.awssdk:http-client-spi'
@@ -60,6 +63,13 @@ dependencies {
 	
 	// HTTP 클라이언트
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	
+	// PDF 생성 라이브러리
+	implementation 'com.itextpdf:itext7-core:7.2.5'
+	implementation 'com.itextpdf:html2pdf:4.0.5'
+	
+	// Markdown to HTML 변환
+	implementation 'com.vladsch.flexmark:flexmark-all:0.64.8'
 }
 
 // build.gradle 파일 하단에 추가
