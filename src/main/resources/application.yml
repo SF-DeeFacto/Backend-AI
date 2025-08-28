@@ -2,6 +2,9 @@ spring:
   application:
     name: ai_service
 
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
   config:
     import: "optional:dotenv:"
 
@@ -14,6 +17,13 @@ spring:
 #    username: root
 #    password: 1234
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      connection-test-query: SELECT 1
+      validation-timeout: 5000
+      maximum-pool-size: 2
+      minimum-idle: 2
+      idle-timeout: 30000
+      max-lifetime: 1800000
   jpa:
     hibernate:
       ddl-auto: update
