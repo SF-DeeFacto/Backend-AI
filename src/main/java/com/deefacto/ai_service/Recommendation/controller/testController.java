@@ -1,7 +1,7 @@
 package com.deefacto.ai_service.Recommendation.controller;
 
 import com.deefacto.ai_service.Recommendation.domain.SensorThresholdUpdateRequestDto;
-import com.deefacto.ai_service.Recommendation.remote.Service.RecommendThresholdProducer;
+import com.deefacto.ai_service.remote.Service.RecommendThresholdProducer;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;

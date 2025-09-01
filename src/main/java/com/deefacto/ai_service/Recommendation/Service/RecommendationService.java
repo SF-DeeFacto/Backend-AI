@@ -2,12 +2,13 @@ package com.deefacto.ai_service.Recommendation.Service;
 
 import com.deefacto.ai_service.Recommendation.domain.AbsoluteThreshold;
 import com.deefacto.ai_service.Recommendation.domain.SensorThresholdUpdateRequestDto;
-import com.deefacto.ai_service.Recommendation.remote.Service.RecommendThresholdProducer;
+import com.deefacto.ai_service.remote.Service.RecommendThresholdProducer;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import com.fasterxml.jackson.core.type.TypeReference;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -16,11 +17,43 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class RecommendationService {
     final private RecommendThresholdProducer recommendThresholdProducer;
+    final private ThresholdBedrockService thresholdBedrockService;
+    final private ObjectMapper objectMapper;
+
 
     // 임계치 추천 bedrock 호출
-    public void recommendateThreshold() {
-        log.info("임계치 추천 작업 시작");
+    public void recommendThreshold(
+            String zoneId,
+            String start,
+            String end
+    ) {
+        log.info("임계치 추천 작업 시작: zone={}, start={}, end={}", zoneId, start, end);
+        try{
+            // Bedrock 호출
+            String responseJson = thresholdBedrockService.invokeBedrockAgent(zoneId, null);
 
+            if (responseJson.isEmpty()) {
+                log.warn("Bedrock 응답이 비어있습니다. zone={}", zoneId);
+                return;
+            }
+
+            // 반환값 DTO 변환
+            List<SensorThresholdUpdateRequestDto> recommandDto = objectMapper.readValue(
+                    responseJson,
+                    new TypeReference<List<SensorThresholdUpdateRequestDto>>() {}
+            );
+
+            log.info("추천 임계치 DTO 변환 완료: {}", recommandDto);
+            // 4️⃣ 추천값 검증
+
+
+            // 5️⃣ 유효하면 Kafka 전송
+            recommendThresholdProducer.requestRecommenThreshold(zoneId, recommandDto);
+            log.info("추천 임계치 Kafka 전송 완료: zone={}", zoneId);
+
+        } catch (Exception e) {
+            log.error("임계치 추천 중 오류 발생: zone={}, error={}", zoneId, e.getMessage(), e);
+        }
 
     }
 

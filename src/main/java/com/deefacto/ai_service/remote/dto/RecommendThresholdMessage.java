@@ -1,4 +1,4 @@
-package com.deefacto.ai_service.Recommendation.remote.dto;
+package com.deefacto.ai_service.remote.dto;
 
 import com.deefacto.ai_service.Recommendation.domain.SensorThresholdUpdateRequestDto;
 import lombok.Getter;

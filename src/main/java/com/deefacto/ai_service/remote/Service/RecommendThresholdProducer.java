@@ -1,7 +1,7 @@
-package com.deefacto.ai_service.Recommendation.remote.Service;
+package com.deefacto.ai_service.remote.Service;
 
 import com.deefacto.ai_service.Recommendation.domain.SensorThresholdUpdateRequestDto;
-import com.deefacto.ai_service.Recommendation.remote.dto.RecommendThresholdMessage;
+import com.deefacto.ai_service.remote.dto.RecommendThresholdMessage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

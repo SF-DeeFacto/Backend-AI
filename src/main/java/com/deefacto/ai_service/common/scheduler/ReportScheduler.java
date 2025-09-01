@@ -20,7 +20,7 @@ public class ReportScheduler {
      * 매월 1일 오전 8시에 실행되는 스케줄러
      * cron 표현식: 초(0) 분(0) 시(8) 일(1) 월(*) 요일(*)
      */
-//    @Scheduled(cron = "0 0 8 1 * *")
+    @Scheduled(cron = "0 0 8 1 * *")
     public void generateMonthlyReport() {
         log.info("월간 리포트 생성 스케줄러 시작: {}", 
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
