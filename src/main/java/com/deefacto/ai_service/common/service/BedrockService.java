@@ -221,6 +221,7 @@ public class BedrockService {
         matcher.appendTail(result);
         log.info("final_찐 리포트 결과 : {}", result.toString());
         return result.toString();
+        // 리포트 완성
     }
 
     /**
