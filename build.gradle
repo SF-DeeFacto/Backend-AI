@@ -70,6 +70,10 @@ dependencies {
 	
 	// Markdown to HTML 변환
 	implementation 'com.vladsch.flexmark:flexmark-all:0.64.8'
+
+	// Kafka 의존성
+	implementation 'org.springframework.kafka:spring-kafka'
+	testImplementation 'org.springframework.kafka:spring-kafka-test'
 }
 
 // build.gradle 파일 하단에 추가
