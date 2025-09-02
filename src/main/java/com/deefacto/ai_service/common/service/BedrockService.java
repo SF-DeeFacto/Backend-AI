@@ -26,6 +26,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.regex.*;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -196,7 +198,29 @@ public class BedrockService {
         }
         
         log.info("생성된 프롬프트: {}", bedrockPrompt.length() > 200 ? bedrockPrompt.substring(0, 200) + "..." : bedrockPrompt);
-        return generateText(bedrockPrompt);
+        // 여길 바꿔서 lamda 파싱값을 넣는다!!!!!!!!!!!!!!
+//                return generateText(bedrockPrompt);
+        String string_temp = generateText(bedrockPrompt);
+        log.info("final 리포트 결과: {}", string_temp);
+        log.info("final 람다 결과 : {}", lambdaResult);
+//        return generateText(bedrockPrompt);
+        Pattern pattern = Pattern.compile("\\{[^}]+\\}");
+        Matcher matcher = pattern.matcher(string_temp);
+        Pattern pattern2 = Pattern.compile("https?://[^\"]+");
+        Matcher matcher2 = pattern2.matcher(lambdaResult);
+        List<String> urls = new ArrayList<>();
+        while(matcher2.find()) {
+            urls.add(matcher2.group());
+        }
+        StringBuffer result = new StringBuffer();
+        int i = 0;
+        while(matcher.find() && i<urls.size()) {
+            matcher.appendReplacement(result, "<img src=\"" + urls.get(i) + "\">");
+            i++;
+        }
+        matcher.appendTail(result);
+        log.info("final_찐 리포트 결과 : {}", result.toString());
+        return result.toString();
     }
 
     /**
@@ -253,9 +277,10 @@ public class BedrockService {
                 JsonNode dataNode = jsonNode.get("data");
                 if (dataNode.isTextual()) {
                     String result = dataNode.asText();
+                    String replaced = result.replaceAll("\\\\\"", "\"");
                     log.info("Lambda data 필드에서 텍스트 추출: {}", 
                         result.length() > 100 ? result.substring(0, 100) + "..." : result);
-                    parsedData.append("Lambda 분석 결과:\n").append(result);
+                    parsedData.append(replaced);
                 } else if (dataNode.isObject()) {
                     // data가 객체인 경우 구조적으로 파싱
                     parsedData.append("📊 Lambda 분석 결과:\n\n");
