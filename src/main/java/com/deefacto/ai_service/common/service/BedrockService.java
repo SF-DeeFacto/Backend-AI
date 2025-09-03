@@ -231,7 +231,7 @@ public class BedrockService {
      * Lambda API 호출
      */
     private String callLambdaAPI(Map<String, Object> requestData) throws IOException {
-        String lambdaUrl = "http://localhost:8085/reports/lambda/test/sync?functionName=report-graph-lambda";
+        String lambdaUrl = "http://k8s-api-apigatew-9a1423437c-d700af6b954e5d10.elb.ap-northeast-2.amazonaws.com/reports/lambda/test/sync?functionName=report-graph-lambda";
         
         HttpPost request = new HttpPost(lambdaUrl);
         request.setHeader("Content-Type", "application/json");
