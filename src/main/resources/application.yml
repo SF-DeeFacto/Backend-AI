@@ -4,9 +4,6 @@ spring:
   # 활성 프로필 설정 (dev, prod 중 선택)
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
-  config:
-    import: optional:file:.env[.properties]
-
 
   kafka:
     listener:
