@@ -38,6 +38,7 @@ public class BedrockService {
 
     private final ObjectMapper objectMapper;
     private final CloseableHttpClient httpClient;
+    private final LambdaTestService lambdaTestService;
 
     @Value("${aws.bedrock.model-id:anthropic.claude-3-sonnet-20240229-v1:0}")
     private String modelId;
@@ -231,33 +232,37 @@ public class BedrockService {
      * Lambda API 호출
      */
     private String callLambdaAPI(Map<String, Object> requestData) throws IOException {
-        String lambdaUrl = "http://k8s-api-apigatew-9a1423437c-d700af6b954e5d10.elb.ap-northeast-2.amazonaws.com/reports/lambda/test/sync?functionName=report-graph-lambda";
-        
-        HttpPost request = new HttpPost(lambdaUrl);
-        request.setHeader("Content-Type", "application/json");
-        request.setHeader("Accept", "application/json");
-        request.setHeader("X-Employee-Id", "AI-System");
+//        String lambdaUrl = "http://localhost:8085/reports/lambda/test/sync?functionName=report-graph-lambda";
+//
+//        HttpPost request = new HttpPost(lambdaUrl);
+//        request.setHeader("Content-Type", "application/json");
+//        request.setHeader("Accept", "application/json");
+//        request.setHeader("X-Employee-Id", "AI-System");
         
         try {
             // Request Body 설정
             String jsonBody = objectMapper.writeValueAsString(requestData);
-            request.setEntity(new StringEntity(jsonBody, StandardCharsets.UTF_8));
+//            request.setEntity(new StringEntity(jsonBody, StandardCharsets.UTF_8));
             
-            log.info("Lambda API 호출 - URL: {}", lambdaUrl);
+//            log.info("Lambda API 호출 - URL: {}", lambdaUrl);
             log.info("Lambda API 요청 Body: {}", jsonBody);
             
-            try (CloseableHttpResponse response = httpClient.execute(request)) {
-                int statusCode = response.getStatusLine().getStatusCode();
-                String responseBody = EntityUtils.toString(response.getEntity());
-                
-                if (statusCode >= 200 && statusCode < 300) {
-                    log.info("Lambda API 호출 성공 - Status: {}", statusCode);
-                    return parseLambdaResponse(responseBody);
-                } else {
-                    log.error("Lambda API 호출 실패 - Status: {}, Body: {}", statusCode, responseBody);
-                    throw new IOException("Lambda API 호출 실패: " + statusCode + " - " + responseBody);
-                }
-            }
+//            try (CloseableHttpResponse response = httpClient.execute(request)) {
+//                int statusCode = response.getStatusLine().getStatusCode();
+//                String responseBody = EntityUtils.toString(response.getEntity());
+//
+//                if (statusCode >= 200 && statusCode < 300) {
+//                    log.info("Lambda API 호출 성공 - Status: {}", statusCode);
+//                    return parseLambdaResponse(responseBody);
+//                } else {
+//                    log.error("Lambda API 호출 실패 - Status: {}, Body: {}", statusCode, responseBody);
+//                    throw new IOException("Lambda API 호출 실패: " + statusCode + " - " + responseBody);
+//                }
+//            }
+            String functionName = "report-graph-lambda";
+            String temp = new String();
+            lambdaTestService.invokeLambdaSync(functionName, requestData);
+            return temp;
         } catch (Exception e) {
             log.error("Lambda API 호출 중 오류 발생", e);
             throw new IOException("Lambda API 호출 실패: " + e.getMessage(), e);
