@@ -260,8 +260,8 @@ public class BedrockService {
 //                }
 //            }
             String functionName = "report-graph-lambda";
-            String temp = new String();
-            lambdaTestService.invokeLambdaSync(functionName, requestData);
+            String temp = lambdaTestService.invokeLambdaSync(functionName, requestData);
+
             return temp;
         } catch (Exception e) {
             log.error("Lambda API 호출 중 오류 발생", e);
