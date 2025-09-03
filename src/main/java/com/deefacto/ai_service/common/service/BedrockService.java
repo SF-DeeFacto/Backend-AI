@@ -13,6 +13,8 @@ import org.apache.http.util.EntityUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.deefacto.ai_service.remote.Service.ReportProducer;
+
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
@@ -145,13 +147,14 @@ public class BedrockService {
             return invokeBedrockModel(prompt);
         }
     }
-
+    private final ReportProducer reportProducer;
     /**
      * 리포트 생성용 프롬프트 (JSON 데이터 포함 + Lambda API 호출)
      */
     public String generateReportSummary(String reportType, Map<String, Object> requestData) {
         log.info("리포트 생성 요청 - 타입: {}, 데이터: {}", reportType, requestData);
-        
+        log.info("zone test : {}", requestData.get("zone"));
+        reportProducer.requestAlimForStore(requestData.get("zone").toString());
         String lambdaResult = "";
         String bedrockPrompt;
         
@@ -552,6 +555,7 @@ public class BedrockService {
 
     /**
      * AWS 서명 추가 (실제 AWS4 서명 알고리즘 구현)
+     *
      */
     private void addAwsSignature(HttpPost request, String payload) {
         try {
