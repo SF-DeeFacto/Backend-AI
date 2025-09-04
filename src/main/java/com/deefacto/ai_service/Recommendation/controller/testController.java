@@ -54,6 +54,7 @@ public class testController {
         log.info("Kafka 발행 요청 완료");
     }
 
+    // bedrock 응답부터 kafka 전송까지 테스트
     @PostMapping(value = "/testBedrockToKafka")
     public void testTotal(
             @RequestBody(required = false) Map<String, Object> request
@@ -66,6 +67,7 @@ public class testController {
         recommendationService.recommendThreshold(zoneId);
     }
 
+    // 받아둔 답변으로 파싱, 카프카 전송 로직만 테스트
     @PostMapping(value = "/call")
     public void testBedrock(
 //            @RequestBody(required = false) Map<String, Object> requestData,
