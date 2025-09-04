@@ -1,6 +1,6 @@
 package com.deefacto.ai_service.remote.Service;
 
-import com.deefacto.ai_service.Recommendation.domain.SensorThresholdUpdateRequestDto;
+import com.deefacto.ai_service.Recommendation.domain.RecommendThresholdDto;
 import com.deefacto.ai_service.remote.dto.RecommendThresholdMessage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,13 +21,13 @@ public class RecommendThresholdProducer {
 
     public void requestRecommenThreshold(
             String zoneId,
-            List<SensorThresholdUpdateRequestDto> dto
+            List<RecommendThresholdDto> dto
     ) {
         log.info("kafka request 메소드 실행: "+zoneId);
 
         RecommendThresholdMessage message = new RecommendThresholdMessage();
         message.setZoneId(zoneId);
-        message.setSensorThresholdUpdateRequestDto(dto);
+        message.setRecommendThresholdDto(dto);
         message.setRecommendedAt(LocalDateTime.now());
 
 

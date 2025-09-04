@@ -1,6 +1,6 @@
 package com.deefacto.ai_service.remote.dto;
 
-import com.deefacto.ai_service.Recommendation.domain.SensorThresholdUpdateRequestDto;
+import com.deefacto.ai_service.Recommendation.domain.RecommendThresholdDto;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -11,7 +11,7 @@ import java.util.List;
 @Setter
 public class RecommendThresholdMessage {
     private String zoneId;
-    private List<SensorThresholdUpdateRequestDto> sensorThresholdUpdateRequestDto;  // 센서 타입별 임계치 리스트
+    private List<RecommendThresholdDto> recommendThresholdDto;  // 센서 타입별 임계치 리스트
     private LocalDateTime recommendedAt;
 
 }

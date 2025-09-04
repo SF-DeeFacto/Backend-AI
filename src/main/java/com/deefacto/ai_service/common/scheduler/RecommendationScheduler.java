@@ -35,7 +35,7 @@ public class RecommendationScheduler {
         // 각 zone에 대해 임계치 추천 서비스 호출
         for(String zoneId : zones) {
             log.info("임계치 추천 호출: zone={}, start={}, end={}",zoneId, start, end);
-            recommendationService.recommendThreshold(zoneId, start, end);
+            recommendationService.recommendThreshold(zoneId);
         }
     }
 }
