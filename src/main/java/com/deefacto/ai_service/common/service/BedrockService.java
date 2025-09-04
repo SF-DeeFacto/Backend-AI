@@ -13,6 +13,8 @@ import org.apache.http.util.EntityUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.deefacto.ai_service.remote.Service.ReportProducer;
+
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
@@ -26,6 +28,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.regex.*;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +38,7 @@ public class BedrockService {
 
     private final ObjectMapper objectMapper;
     private final CloseableHttpClient httpClient;
+    private final LambdaTestService lambdaTestService;
 
     @Value("${aws.bedrock.model-id:anthropic.claude-3-sonnet-20240229-v1:0}")
     private String modelId;
@@ -143,13 +148,14 @@ public class BedrockService {
             return invokeBedrockModel(prompt);
         }
     }
-
+    private final ReportProducer reportProducer;
     /**
      * 리포트 생성용 프롬프트 (JSON 데이터 포함 + Lambda API 호출)
      */
     public String generateReportSummary(String reportType, Map<String, Object> requestData) {
         log.info("리포트 생성 요청 - 타입: {}, 데이터: {}", reportType, requestData);
-        
+        log.info("zone test : {}", requestData.get("zone"));
+        reportProducer.requestAlimForStore(requestData.get("zone").toString());
         String lambdaResult = "";
         String bedrockPrompt;
         
@@ -196,40 +202,67 @@ public class BedrockService {
         }
         
         log.info("생성된 프롬프트: {}", bedrockPrompt.length() > 200 ? bedrockPrompt.substring(0, 200) + "..." : bedrockPrompt);
-        return generateText(bedrockPrompt);
+        // 여길 바꿔서 lamda 파싱값을 넣는다!!!!!!!!!!!!!!
+//                return generateText(bedrockPrompt);
+        String string_temp = generateText(bedrockPrompt);
+        log.info("final 리포트 결과: {}", string_temp);
+        log.info("final 람다 결과 : {}", lambdaResult);
+//        return generateText(bedrockPrompt);
+        Pattern pattern = Pattern.compile("\\{[^}]+\\}");
+        Matcher matcher = pattern.matcher(string_temp);
+        Pattern pattern2 = Pattern.compile("https?://[^\"]+");
+        Matcher matcher2 = pattern2.matcher(lambdaResult);
+        List<String> urls = new ArrayList<>();
+        while(matcher2.find()) {
+            urls.add(matcher2.group());
+        }
+        StringBuffer result = new StringBuffer();
+        int i = 0;
+        while(matcher.find() && i<urls.size()) {
+            matcher.appendReplacement(result, "<img src=\"" + urls.get(i) + "\">");
+            i++;
+        }
+        matcher.appendTail(result);
+        log.info("final_찐 리포트 결과 : {}", result.toString());
+        return result.toString();
+        // 리포트 완성
     }
 
     /**
      * Lambda API 호출
      */
     private String callLambdaAPI(Map<String, Object> requestData) throws IOException {
-        String lambdaUrl = "http://localhost:8085/reports/lambda/test/sync?functionName=report-graph-lambda";
-        
-        HttpPost request = new HttpPost(lambdaUrl);
-        request.setHeader("Content-Type", "application/json");
-        request.setHeader("Accept", "application/json");
-        request.setHeader("X-Employee-Id", "AI-System");
+//        String lambdaUrl = "http://localhost:8085/reports/lambda/test/sync?functionName=report-graph-lambda";
+//
+//        HttpPost request = new HttpPost(lambdaUrl);
+//        request.setHeader("Content-Type", "application/json");
+//        request.setHeader("Accept", "application/json");
+//        request.setHeader("X-Employee-Id", "AI-System");
         
         try {
             // Request Body 설정
             String jsonBody = objectMapper.writeValueAsString(requestData);
-            request.setEntity(new StringEntity(jsonBody, StandardCharsets.UTF_8));
+//            request.setEntity(new StringEntity(jsonBody, StandardCharsets.UTF_8));
             
-            log.info("Lambda API 호출 - URL: {}", lambdaUrl);
+//            log.info("Lambda API 호출 - URL: {}", lambdaUrl);
             log.info("Lambda API 요청 Body: {}", jsonBody);
             
-            try (CloseableHttpResponse response = httpClient.execute(request)) {
-                int statusCode = response.getStatusLine().getStatusCode();
-                String responseBody = EntityUtils.toString(response.getEntity());
-                
-                if (statusCode >= 200 && statusCode < 300) {
-                    log.info("Lambda API 호출 성공 - Status: {}", statusCode);
-                    return parseLambdaResponse(responseBody);
-                } else {
-                    log.error("Lambda API 호출 실패 - Status: {}, Body: {}", statusCode, responseBody);
-                    throw new IOException("Lambda API 호출 실패: " + statusCode + " - " + responseBody);
-                }
-            }
+//            try (CloseableHttpResponse response = httpClient.execute(request)) {
+//                int statusCode = response.getStatusLine().getStatusCode();
+//                String responseBody = EntityUtils.toString(response.getEntity());
+//
+//                if (statusCode >= 200 && statusCode < 300) {
+//                    log.info("Lambda API 호출 성공 - Status: {}", statusCode);
+//                    return parseLambdaResponse(responseBody);
+//                } else {
+//                    log.error("Lambda API 호출 실패 - Status: {}, Body: {}", statusCode, responseBody);
+//                    throw new IOException("Lambda API 호출 실패: " + statusCode + " - " + responseBody);
+//                }
+//            }
+            String functionName = "report-graph-lambda";
+            String temp = lambdaTestService.invokeLambdaSync(functionName, requestData);
+
+            return temp;
         } catch (Exception e) {
             log.error("Lambda API 호출 중 오류 발생", e);
             throw new IOException("Lambda API 호출 실패: " + e.getMessage(), e);
@@ -253,9 +286,10 @@ public class BedrockService {
                 JsonNode dataNode = jsonNode.get("data");
                 if (dataNode.isTextual()) {
                     String result = dataNode.asText();
+                    String replaced = result.replaceAll("\\\\\"", "\"");
                     log.info("Lambda data 필드에서 텍스트 추출: {}", 
                         result.length() > 100 ? result.substring(0, 100) + "..." : result);
-                    parsedData.append("Lambda 분석 결과:\n").append(result);
+                    parsedData.append(replaced);
                 } else if (dataNode.isObject()) {
                     // data가 객체인 경우 구조적으로 파싱
                     parsedData.append("📊 Lambda 분석 결과:\n\n");
@@ -526,6 +560,7 @@ public class BedrockService {
 
     /**
      * AWS 서명 추가 (실제 AWS4 서명 알고리즘 구현)
+     *
      */
     private void addAwsSignature(HttpPost request, String payload) {
         try {
