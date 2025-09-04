@@ -16,7 +16,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class RecommendThresholdProducer {
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final KafkaTemplate<String, RecommendThresholdMessage> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
     public void requestRecommenThreshold(
@@ -31,13 +31,8 @@ public class RecommendThresholdProducer {
         message.setRecommendedAt(LocalDateTime.now());
 
 
-        try {
-            String payload = objectMapper.writeValueAsString(message);
-            kafkaTemplate.send("recommend-threshold",zoneId, payload);
-            log.info("kafka 메시지 전송 성공: {}", payload);
-        } catch (JsonProcessingException e) {
-            log.error("kafka 메시지 직렬화 실패", e);
-        }
+        kafkaTemplate.send("recommend-threshold",zoneId, message);
+        log.info("kafka 메시지 전송 성공: {}", message);
 
     }
 
