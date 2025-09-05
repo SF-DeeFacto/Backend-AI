@@ -12,6 +12,6 @@ import java.util.List;
 public class RecommendThresholdMessage {
     private String zoneId;
     private List<RecommendThresholdDto> recommendThresholdDto;  // 센서 타입별 임계치 리스트
-    private LocalDateTime recommendedAt;
+    private String recommendedAt;
 
 }

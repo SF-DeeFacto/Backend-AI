@@ -745,6 +745,12 @@ public class ThresholdBedrockService {
                 dto.setAlertHigh(sensorNode.path("warning").asDouble());
                 dto.setWarningLow(null);
                 dto.setAlertLow(null);
+            } else if ("winddirection".equals(mappedSensorType)) {
+                // wind 센서일 때 특별 처리
+                dto.setAlertLow(sensorNode.path("normalLow").asDouble());
+                dto.setAlertHigh(sensorNode.path("normalHigh").asDouble());
+                dto.setWarningLow(sensorNode.path("warningLow").asDouble());
+                dto.setWarningHigh(sensorNode.path("warningHigh").asDouble());
             } else {
                 dto.setWarningHigh(sensorNode.path("warningHigh").asDouble());
                 dto.setAlertHigh(sensorNode.path("alertHigh").asDouble());
@@ -765,7 +771,7 @@ public class ThresholdBedrockService {
             case "hum": return "humidity";
             case "Wind Direction":
             case "wind":
-            case "wd": return "wind";
+            case "wd": return "winddirection";
             case "Electrostatic Discharge":
             case "esd": return "electrostatic";
             case "Particle Counts":
@@ -779,7 +785,7 @@ public class ThresholdBedrockService {
         switch (originalType) {
             case "온도": return "temperature";
             case "습도": return "humidity";
-            case "풍향": return "wind";
+            case "풍향": return "winddirection";
             case "정전기": return "electrostatic";
             case "파티클": return "particle";
             default: return originalType;

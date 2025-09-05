@@ -10,6 +10,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -28,7 +29,7 @@ public class RecommendThresholdProducer {
         RecommendThresholdMessage message = new RecommendThresholdMessage();
         message.setZoneId(zoneId);
         message.setRecommendThresholdDto(dto);
-        message.setRecommendedAt(LocalDateTime.now());
+        message.setRecommendedAt(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
 
 
         kafkaTemplate.send("recommend-threshold",zoneId, message);

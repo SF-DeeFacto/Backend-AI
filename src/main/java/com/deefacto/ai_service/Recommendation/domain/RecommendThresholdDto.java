@@ -34,12 +34,4 @@ public class RecommendThresholdDto {
                 '}';
     }
 
-    // 절대 임계치와 비교
-    public void filterSafeThreshold(AbsoluteThreshold absoluteThreshold) {
-        if (warningLow < absoluteThreshold.getWarningLow()) warningLow = absoluteThreshold.getWarningLow();
-        if (warningHigh > absoluteThreshold.getWarningHigh()) warningHigh = absoluteThreshold.getWarningHigh();
-        if (alertLow < absoluteThreshold.getAlertLow()) alertLow = absoluteThreshold.getAlertLow();
-        if (alertHigh > absoluteThreshold.getAlertHigh()) alertHigh = absoluteThreshold.getAlertHigh();
-    }
-
 }
