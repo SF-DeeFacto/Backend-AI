@@ -427,18 +427,34 @@ public class ThresholdBedrockService {
                                 // Base64 디코딩 시도
                                 try {
                                     byte[] decodedBytes = java.util.Base64.getDecoder().decode(base64Text);
+                                    // 디코딩 성공 후
                                     String decodedText = new String(decodedBytes, "UTF-8");
-                                    log.info("디코딩 성공! 텍스트 길이: {}", decodedText.length());
-                                    log.info("디코딩된 텍스트 샘플: {}",
+
+// ⚡ 숫자 끝에 점만 있는 경우 0 붙이기
+                                    decodedText = decodedText.replaceAll("(-?\\d+)\\.(?!\\d)", "$1.0");
+
+                                    log.info("디코딩 후 정제된 텍스트 샘플: {}",
                                             decodedText.length() > 200 ? decodedText.substring(0, 200) + "..." : decodedText);
 
-                                    // 조건을 더 관대하게 설정 - 의미있는 텍스트면 반환
+// 조건을 더 관대하게 설정 - 의미있는 텍스트면 반환
                                     if (decodedText.length() > 20) {
                                         log.info("유효한 텍스트로 판단, 반환합니다.");
                                         return cleanAndFormatText(decodedText);
                                     } else {
                                         log.info("텍스트가 너무 짧습니다: {}", decodedText.length());
                                     }
+//                                    String decodedText = new String(decodedBytes, "UTF-8");
+//                                    log.info("디코딩 성공! 텍스트 길이: {}", decodedText.length());
+//                                    log.info("디코딩된 텍스트 샘플: {}",
+//                                            decodedText.length() > 200 ? decodedText.substring(0, 200) + "..." : decodedText);
+//
+//                                    // 조건을 더 관대하게 설정 - 의미있는 텍스트면 반환
+//                                    if (decodedText.length() > 20) {
+//                                        log.info("유효한 텍스트로 판단, 반환합니다.");
+//                                        return cleanAndFormatText(decodedText);
+//                                    } else {
+//                                        log.info("텍스트가 너무 짧습니다: {}", decodedText.length());
+//                                    }
                                 } catch (IllegalArgumentException e) {
                                     log.warn("Base64 디코딩 실패 (잘못된 형식): {}", e.getMessage());
                                     // 디코딩 실패 시 원본 텍스트도 시도
@@ -524,61 +540,6 @@ public class ThresholdBedrockService {
         }
     }
 
-    /**
-     * 응답에서 "추천임계치 선택 이유" 관련 한글 텍스트만 추출
-     */
-    public Map<String, Map<String, String>> extractReasonBySensorEnglish(String text) {
-//        Map<String, Map<String, String>> reasons = new HashMap<>();
-//        Pattern pattern = Pattern.compile("(.+ \\(.+\\)):\\n-\\s+([\\s\\S]*?)(?=\\n\\n|In summary)");
-//        Matcher matcher = pattern.matcher(text);
-//
-//        while (matcher.find()) {
-//            String title = matcher.group(1).trim();
-//            String content = matcher.group(2).trim();
-//
-//            String sensorKey = title.split(" ")[0].toLowerCase();
-//            String mappedKey = mapSensorType(sensorKey);
-//
-//            if (!mappedKey.isEmpty()) {
-//                Map<String, String> details = new HashMap<>();
-//                details.put("title", title);
-//                details.put("content", content);
-//                reasons.put(mappedKey, details);
-//            }
-//        }
-//
-//        log.info("reasons: "+reasons);
-//        return reasons;
-
-        Map<String, Map<String, String>> reasons = new HashMap<>();
-
-        // ⚠️ 정규식 수정: 첫 문장을 건너뛰고, 제목을 정확히 분리하며, 내용의 경계를 명확히 설정합니다.
-        Pattern pattern = Pattern.compile(
-                "(Temperature|Humidity|Wind Direction|Electrostatic Discharge|Particle Counts) \\(.+?\\):-([\\s\\S]*?)(?=(?:Temperature|Humidity|Wind Direction|Electrostatic Discharge|Particle Counts) \\(.+?\\):|In summary, the analysis|\\Z)"
-        );
-        Matcher matcher = pattern.matcher(text);
-
-        while (matcher.find()) {
-            String fullTitle = matcher.group(1).trim(); // 그룹 1: 제목
-            String content = matcher.group(2).trim();   // 그룹 2: 내용
-
-            String mappedKey;
-            if (fullTitle.equals("Particle Counts")) {
-                mappedKey = "particle";
-            } else {
-                mappedKey = mapSensorType(fullTitle);
-            }
-
-            if (!mappedKey.isEmpty()) {
-                Map<String, String> details = new HashMap<>();
-                details.put("title", fullTitle);
-                details.put("content", content);
-                reasons.put(mappedKey, details);
-            }
-        }
-        return reasons;
-    }
-
     private String extractKoreanText(String responseBody) {
         try {
             // 추천임계치 관련 키워드 우선 패턴
@@ -618,66 +579,112 @@ public class ThresholdBedrockService {
         return "";
     }
 
-//    public Map<String, String> extractReasonBySensorKorean(String text) {
-//        Map<String, String> reasons = new HashMap<>();
-//        String[] lines = text.split("\n");
-//        String currentTitle = null;
-//        StringBuilder currentContent = new StringBuilder();
+    public Map<String, Map<String, String>> extractReasonBySensorKorean(JsonNode textArray) {
+        Map<String, Map<String, String>> reasons = new HashMap<>();
+
+        for (JsonNode node : textArray) {
+            String sensorCode = node.path("sensorType").asText();
+            String description = node.path("description").asText();
+
+            String key;
+            String title;
+
+            if (sensorCode.startsWith("particle")) {
+                key = sensorCode; // Bedrock key 그대로
+                switch (sensorCode) {
+                    case "particle_0_1": title = "0.1μm 파티클"; break;
+                    case "particle_0_3": title = "0.3μm 파티클"; break;
+                    case "particle_0_5": title = "0.5μm 파티클"; break;
+                    default: title = "파티클";
+                }
+            } else {
+                key = mapSensorType(sensorCode); // DTO 기준 key
+                switch (sensorCode) {
+                    case "temp": title = "온도"; break;
+                    case "hum": title = "습도"; break;
+                    case "esd": title = "정전기"; break;
+                    case "wind": title = "풍향"; break;
+                    default: title = sensorCode;
+                }
+            }
+
+            Map<String, String> detail = new HashMap<>();
+            detail.put("title", title);
+            detail.put("content", description);
+
+            reasons.put(key, detail);
+        }
+
+        return reasons;
+    }
+
+//    public Map<String, Map<String, String>> extractReasonBySensorKorean(JsonNode textArray) {
+//        Map<String, Map<String, String>> reasons = new HashMap<>();
 //
-//        for (String line : lines) {
-//            line = line.trim();
-//            if (line.isEmpty()) continue;
+//        for (JsonNode node : textArray) {
+//            String sensorCode = node.path("sensorType").asText();
+//            String description = node.path("description").asText();
 //
-//            if (line.matches("\\d+\\.\\s.*센서 데이터 분석.*")) {
-//                // 이전 제목/내용 저장
-//                if (currentTitle != null) {
-//                    reasons.put(currentTitle, currentContent.toString().trim());
-//                }
-//                // 새로운 제목 시작
-//                currentTitle = line.replaceAll("\\d+\\.\\s*", "").replace(":", "");
-//                currentContent.setLength(0);
+//            String key;
+//            String title;
+//
+//            // particle 계열은 공통 처리
+//            if (sensorCode.startsWith("particle")) {
+//                key = "particle";
+//                title = "파티클";
 //            } else {
-//                currentContent.append(line).append(" ");
+//                key = mapSensorType(sensorCode); // 기존 sensorCode → mappedType
+//                switch (sensorCode) {
+//                    case "temp": title = "온도"; break;
+//                    case "hum": title = "습도"; break;
+//                    case "esd": title = "정전기"; break;
+//                    case "wind": title = "풍향"; break;
+//                    default: title = sensorCode;
+//                }
 //            }
+//
+//            Map<String, String> detail = new HashMap<>();
+//            detail.put("title", title);
+//            detail.put("content", description);
+//
+//            reasons.put(key, detail);
 //        }
-//        if (currentTitle != null) {
-//            reasons.put(currentTitle, currentContent.toString().trim());
-//        }
+//
 //        return reasons;
 //    }
 
-    public Map<String, Map<String, String>> extractReasonBySensorKorean(String text) {
-        Map<String, Map<String, String>> reasons = new HashMap<>();
-
-        // ⚠️ 한글 텍스트에 맞게 수정된 정규식: 각 센서 블록 전체를 매칭
-        // 그룹 1: 전체 제목 (ex: "1. 온도 센서 데이터 분석:")
-        // 그룹 2: 센서 이름 (ex: "온도")
-        // 그룹 3: 센서 내용
-        Pattern pattern = Pattern.compile(
-                "\\d+\\.\\s(.*?)\\s센서 데이터 분석:([\\s\\S]*?)(?=\\d+\\.\\s.*?센서 데이터 분석:|\\Z)"
-        );
-        Matcher matcher = pattern.matcher(text);
-
-        // 첫 번째 매치부터 시작하여 모든 센서 블록을 순회
-        while (matcher.find()) {
-            String fullTitle = "1. " + matcher.group(1).trim() + " 센서 데이터 분석"; // ex: "온도" -> "1. 온도 센서 데이터 분석"
-            String sensorName = matcher.group(1).trim(); // "온도", "습도" 등
-            String content = matcher.group(2).trim();
-
-            // 파티클의 경우 '0.1' 등의 내용이 있을 수 있어 mapSensorType에 추가 로직 필요
-            String mappedKey = mapSensorTypeKorean(sensorName);
-
-            if (!mappedKey.isEmpty()) {
-                Map<String, String> details = new HashMap<>();
-                details.put("title", fullTitle);
-                details.put("content", content);
-                reasons.put(mappedKey, details);
-            }
-        }
-
-        log.info("Korean reasons: " + reasons);
-        return reasons;
-    }
+//    public Map<String, Map<String, String>> extractReasonBySensorKorean(JsonNode textArray) {
+//        Map<String, Map<String, String>> reasons = new HashMap<>();
+//
+//        // "- 센서명(코드): 설명" 형태 매칭
+//        Pattern pattern = Pattern.compile("-\\s*(.*?)\\((.*?)\\):\\s*(.*)");
+//
+//        for (JsonNode node : textArray) {
+//            String line = node.asText().trim();
+//            Matcher matcher = pattern.matcher(line);
+//
+//            if (matcher.find()) {
+//                String sensorNameKor = matcher.group(1).trim();  // 온도, 습도 ...
+//                String sensorCode = matcher.group(2).trim();     // temp, hum ...
+//                String content = matcher.group(3).trim();
+//
+//                String mappedKey = mapSensorType(sensorCode);
+//
+//                // ✅ particle 계열은 모두 "particle" 키에 묶어서 저장
+//                if (mappedKey.startsWith("particle_")) {
+//                    mappedKey = "particle";
+//                }
+//
+//                if (!mappedKey.isEmpty()) {
+//                    Map<String, String> details = new HashMap<>();
+//                    details.put("title", sensorNameKor);
+//                    details.put("content", content);
+//                    reasons.put(mappedKey, details);
+//                }
+//            }
+//        }
+//        return reasons;
+//    }
 
 
     /**
@@ -718,84 +725,64 @@ public class ThresholdBedrockService {
     }
 
 
-    // Dto에 맞게 변환
-    public List<RecommendThresholdDto> convertToDto(Map<String, Map<String, String>> reasons, JsonNode dataNode) {
+    // DTO 변환
+    public List<RecommendThresholdDto> convertToDto(
+            Map<String, Map<String, String>> reasons,
+            JsonNode dataNode
+    ) {
         List<RecommendThresholdDto> dtos = new ArrayList<>();
 
         for (JsonNode sensorNode : dataNode) {
             RecommendThresholdDto dto = new RecommendThresholdDto();
 
             String originalSensorType = sensorNode.path("sensorType").asText();
-            String mappedSensorType = mapSensorType(originalSensorType);
+            String mappedSensorType = mapSensorType(originalSensorType); // DTO용 타입
             dto.setSensorType(mappedSensorType);
             dto.setZoneId(sensorNode.path("zoneId").asText());
 
-            Map<String, String> reason = reasons.getOrDefault(mappedSensorType, new HashMap<>());
-            if (originalSensorType.startsWith("particle_")) {
-                reason = reasons.getOrDefault("particle", new HashMap<>());
+            // 이유 매핑
+            Map<String, String> reason;
+            if (originalSensorType.startsWith("particle")) {
+                reason = reasons.getOrDefault(originalSensorType, new HashMap<>()); // Bedrock key 기준
             } else {
                 reason = reasons.getOrDefault(mappedSensorType, new HashMap<>());
             }
+
             dto.setReasonTitle(reason.get("title"));
             dto.setReasonContent(reason.get("content"));
 
-            // 임계치 값 매핑
-            if ("electrostatic".equals(mappedSensorType) || mappedSensorType.startsWith("particle")) {
-                dto.setWarningHigh(sensorNode.path("normal").asDouble());
-                dto.setAlertHigh(sensorNode.path("warning").asDouble());
+            // 임계치 매핑
+            if ("electrostatic".equals(mappedSensorType) || originalSensorType.startsWith("particle")) {
                 dto.setWarningLow(null);
                 dto.setAlertLow(null);
-            } else if ("winddirection".equals(mappedSensorType)) {
-                // wind 센서일 때 특별 처리
-                dto.setAlertLow(sensorNode.path("normalLow").asDouble());
-                dto.setAlertHigh(sensorNode.path("normalHigh").asDouble());
-                dto.setWarningLow(sensorNode.path("warningLow").asDouble());
-                dto.setWarningHigh(sensorNode.path("warningHigh").asDouble());
+                dto.setWarningHigh(sensorNode.path("warning").isMissingNode() ? null : sensorNode.path("warning").asDouble());
+                dto.setAlertHigh(sensorNode.path("alert").isMissingNode() ? null : sensorNode.path("alert").asDouble());
             } else {
-                dto.setWarningHigh(sensorNode.path("warningHigh").asDouble());
-                dto.setAlertHigh(sensorNode.path("alertHigh").asDouble());
-                dto.setWarningLow(sensorNode.path("warningLow").asDouble());
-                dto.setAlertLow(sensorNode.path("alertLow").asDouble());
+                dto.setWarningLow(sensorNode.path("warningLow").isMissingNode() ? null : sensorNode.path("warningLow").asDouble());
+                dto.setWarningHigh(sensorNode.path("warningHigh").isMissingNode() ? null : sensorNode.path("warningHigh").asDouble());
+                dto.setAlertLow(sensorNode.path("alertLow").isMissingNode() ? null : sensorNode.path("alertLow").asDouble());
+                dto.setAlertHigh(sensorNode.path("alertHigh").isMissingNode() ? null : sensorNode.path("alertHigh").asDouble());
             }
+
             dtos.add(dto);
         }
+
         return dtos;
     }
 
+
+    // sensorType 매핑
     public String mapSensorType(String type) {
-        // ⚠️ 매핑 로직 수정: 센서 제목 전체를 기준으로 매핑합니다.
         switch (type) {
-            case "Temperature":
             case "temp": return "temperature";
-            case "Humidity":
             case "hum": return "humidity";
-            case "Wind Direction":
             case "wind":
             case "wd": return "winddirection";
-            case "Electrostatic Discharge":
             case "esd": return "electrostatic";
-            case "Particle Counts":
-            case "lpm": return "particle";
-            default: return type;
+            case "particle_0_1":
+            case "particle_0_3":
+            case "particle_0_5": return type + "um"; // DTO에서는 um 붙임
+            default: return type; // particle_x_x 등 그대로 유지
         }
-    }
-
-    // 이전에 사용했던 mapSensorType 메서드도 업데이트해야 합니다.
-    public String mapSensorTypeKorean(String originalType) {
-        switch (originalType) {
-            case "온도": return "temperature";
-            case "습도": return "humidity";
-            case "풍향": return "winddirection";
-            case "정전기": return "electrostatic";
-            case "파티클": return "particle";
-            default: return originalType;
-        }
-    }
-
-    private String findMatchingTitle(String sensorType, Set<String> titles) {
-        for (String title : titles) {
-            if (title.contains(sensorType.substring(0, 4))) return title; // 예: "temp" → "온도 센서 데이터 분석"
-        }
-        return null;
     }
 }

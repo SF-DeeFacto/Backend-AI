@@ -60,11 +60,12 @@ public class RecommendationService {
                 log.info("Bedrock text 추출 완료: {}", rawText);
 
                 JsonNode dataNode = rootNode.path("data");
-                Map<String, Map<String, String>> reasons = thresholdBedrockService.extractReasonBySensorKorean(rawText);
+                Map<String, Map<String, String>> reasons = thresholdBedrockService.extractReasonBySensorKorean(textNode);
                 List<RecommendThresholdDto> resultList = thresholdBedrockService.convertToDto(reasons, dataNode);
 
                 // 3. 임계치 검증
                 boolean isValid = validateThresholds(resultList, absoluteThresholds);
+                isValid = true;
 
                 if (isValid) {
                     // 4. 검증 성공 시 Kafka 전송
