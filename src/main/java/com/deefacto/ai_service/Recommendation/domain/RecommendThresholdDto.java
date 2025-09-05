@@ -1,5 +1,6 @@
 package com.deefacto.ai_service.Recommendation.domain;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -8,7 +9,9 @@ import lombok.Setter;
 public class RecommendThresholdDto {
     // Dashboard의 Threshold와 일치
     // zoneId와 sensorType은 어떤 센서인지 특정하기 위해 필수
+    @NotBlank(message = "zoneId는 필수입니다.")
     private String zoneId;
+    @NotBlank(message = "sensorType은 필수입니다.")
     private String sensorType;
 
     private String reasonTitle;

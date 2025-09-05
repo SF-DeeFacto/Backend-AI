@@ -45,6 +45,7 @@ public class ReportService {
     private String bucketName;
 
     // 리포트 조회 - 전체 조회
+    @Transactional(readOnly = true)
     public Page<Report> getReportsByRoleAndEmployeeId(List<String> roles, String employeeId, Pageable pageable) {
 
         boolean isAdmin = isAdmin(employeeId);
@@ -68,6 +69,7 @@ public class ReportService {
     }
 
     // 리포트 조회 - 검색 필터링
+    @Transactional(readOnly = true)
     public Page<Report> serchReports(
             String employeeId,
             List<String> roles,

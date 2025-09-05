@@ -37,6 +37,9 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
+	// Validation
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+
 	// AWS SDK v2 - S3
     implementation platform('software.amazon.awssdk:bom:2.20.110')
     implementation 'software.amazon.awssdk:s3'

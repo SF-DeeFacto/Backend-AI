@@ -108,7 +108,7 @@ public class testController {
 
                 JsonNode dataNode = rootNode.path("data");
 //                Map<String, Map<String, String>> reasons = thresholdBedrockService.extractReasonBySensorEnglish(rawText);
-                Map<String, Map<String, String>> reasons = thresholdBedrockService.extractReasonBySensorKorean(rawText);
+                Map<String, Map<String, String>> reasons = thresholdBedrockService.extractReasonBySensorKorean(textNode);
                 log.info("reasons: " + reasons);
 
                 List<RecommendThresholdDto> resultList = thresholdBedrockService.convertToDto(reasons, dataNode);
