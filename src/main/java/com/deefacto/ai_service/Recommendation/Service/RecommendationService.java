@@ -111,7 +111,7 @@ public class RecommendationService {
             String sensorType = dto.getSensorType();
 
             // 1️⃣ ESD, Particle 계열은 "High 값"만 체크
-            if ("esd".equals(sensorType) || sensorType.startsWith("particle")) {
+            if ("electrostatic".equals(sensorType) || sensorType.startsWith("particle")) {
                 if (alertHigh == null) return false;
 
                 // 절대 alertHigh 범위 내에 있어야 함
