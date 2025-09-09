@@ -269,7 +269,7 @@ public class ReportService {
             LocalDateTime now = LocalDateTime.now();
             
             // AWS Bedrock을 사용하여 AI 테스트 리포트 생성
-            String aiGeneratedReport = bedrockService.generateReportSummary("테스트", requestData);
+            String aiGeneratedReport = bedrockService.generateReportSummary("정기", requestData);
             log.info("AI 생성 테스트 리포트 길이: {}", aiGeneratedReport.length());
             log.info("AI 생성 테스트 리포트 내용: {}", 
                 aiGeneratedReport.length() > 500 ? aiGeneratedReport.substring(0, 500) + "..." : aiGeneratedReport);
@@ -280,13 +280,13 @@ public class ReportService {
                 && !aiGeneratedReport.contains("파싱 실패")) {
                 
                 // PDF 파일명 생성 (현재 시각 기반)
-                String fileName = "ai-test-report-" + now.format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + ".pdf";
+                String fileName = requestData.get("zone")+"_reports_" + now.format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + ".pdf";
                 
                 // PDF 생성
                 byte[] pdfBytes = pdfGeneratorService.generatePdfFromBedrockResponse(
                     aiGeneratedReport, 
-                    "AI 테스트 리포트",
-                    "AI-System"
+                    "AI_report",
+                    "123"
                 );
                 
                 // S3에 PDF 업로드
@@ -299,8 +299,8 @@ public class ReportService {
                 Report testReport = Report.builder()
                     .fileName(fileName)
                     .role("ADMIN") // 관리자 권한
-                    .type("테스트")
-                    .employeeId("AI-System")
+                    .type("정기")
+                    .employeeId("123")
                     .createdAt(now)
                     .build();
                 
