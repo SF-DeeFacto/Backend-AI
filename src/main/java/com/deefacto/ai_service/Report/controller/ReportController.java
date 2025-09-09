@@ -73,13 +73,13 @@ public class ReportController {
 
         boolean isAdmin = reportService.isAdmin(employeeId);
 
-//        if(!isAdmin) {
-//            if(!reportService.isDownloadAllowed(roles, employeeId, fileName)) {
-//                ApiResponseDto<String> errorBody = ApiResponseDto.createError(ErrorCode.UNAUTHORIZED.getCode(), ErrorCode.UNAUTHORIZED.getMessage());
-//                return ResponseEntity.badRequest()
-//                        .body(errorBody);
-//            }
-//        }
+        if(!isAdmin) {
+            if(!reportService.isDownloadAllowed(roles, employeeId, fileName)) {
+                ApiResponseDto<String> errorBody = ApiResponseDto.createError(ErrorCode.UNAUTHORIZED.getCode(), ErrorCode.UNAUTHORIZED.getMessage());
+                return ResponseEntity.badRequest()
+                        .body(errorBody);
+            }
+        }
 
         // 검증 통과 시 다운로드 처리
         InputStream fileStream = reportService.downloadFile(fileName);

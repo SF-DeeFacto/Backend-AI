@@ -108,7 +108,7 @@ public class ReportService {
     public InputStream downloadFile(String fileName) throws  IOException {
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                 .bucket(bucketName)
-                .key("reports/pdf/"+fileName)
+                .key(fileName)
                 .build();
 
         ResponseInputStream<?> s3ObjectInputStream = s3Client.getObject(getObjectRequest);
@@ -183,7 +183,7 @@ public class ReportService {
         try {
             JsonNode node = objectMapper.readTree(value);
             String role = node.path("role").asText();
-            return role.contains("root") || role.contains("ADMIN");
+            return role.contains("ROOT") || role.contains("ADMIN");
         } catch (JsonProcessingException e) {
             throw new CustomException(ErrorCode.INTERNAL_ERROR);
         }
