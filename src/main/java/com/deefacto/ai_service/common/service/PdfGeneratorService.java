@@ -179,13 +179,13 @@ public class PdfGeneratorService {
                 <body>
                     <div class="header">
                         <h1>%s</h1>
-                        <p>AI 생성 리포트</p>
+                        <p>AI Generated Report</p>
                     </div>
                     
                     <div class="meta-info">
-                        <p><strong>생성일시:</strong> %s</p>
-                        <p><strong>요청자:</strong> %s</p>
-                        <p><strong>생성시스템:</strong> DeeFacto AI Service</p>
+                        <p><strong>make date:</strong> %s</p>
+                        <p><strong>employ-ID:</strong> %s</p>
+                        <p><strong>made from</strong> DeeFacto AI Service</p>
                     </div>
                     
                     <div class="content">
@@ -193,7 +193,7 @@ public class PdfGeneratorService {
                     </div>
                     
                     <div class="footer">
-                        <p>본 문서는 AI에 의해 자동 생성되었습니다.</p>
+                        <p>this report made from DeeFacto</p>
                         <p>© DeeFacto AI Service - %s</p>
                     </div>
                 </body>
