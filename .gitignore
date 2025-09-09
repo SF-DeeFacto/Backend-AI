@@ -23,6 +23,7 @@ src/main/resources/certs/
 ### 환경변수 파일
 .env
 env2
+2.env
 
 # User-specific stuff
 .idea/**/workspace.xml
