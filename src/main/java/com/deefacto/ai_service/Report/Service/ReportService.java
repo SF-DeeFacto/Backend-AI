@@ -108,7 +108,7 @@ public class ReportService {
     public InputStream downloadFile(String fileName) throws  IOException {
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                 .bucket(bucketName)
-                .key(fileName)
+                .key("reports/pdf/"+fileName)
                 .build();
 
         ResponseInputStream<?> s3ObjectInputStream = s3Client.getObject(getObjectRequest);
