@@ -53,7 +53,7 @@ spring:
       thread-name-prefix: "scheduler-"
 
 server:
-  port: 8089
+  port: 8085
 
 # 스케줄링 관련 설정
 scheduler:

@@ -280,12 +280,12 @@ public class ReportService {
                 && !aiGeneratedReport.contains("파싱 실패")) {
                 
                 // PDF 파일명 생성 (현재 시각 기반)
-                String fileName = requestData.get("zone")+"_reports_" + now.format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + ".pdf";
+                String fileName = "Report_" + requestData.get("zone")+" "+now.format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + ".pdf";
                 
                 // PDF 생성
                 byte[] pdfBytes = pdfGeneratorService.generatePdfFromBedrockResponse(
                     aiGeneratedReport, 
-                    "AI_report",
+                    "Cleanroom Environment Regular Report",
                     "123"
                 );
                 

@@ -3,6 +3,7 @@ package com.deefacto.ai_service.common.scheduler;
 import com.deefacto.ai_service.Report.Service.ReportService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -14,6 +15,7 @@ import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
+@EnableScheduling
 @Slf4j
 public class ReportScheduler {
 
@@ -40,7 +42,7 @@ public class ReportScheduler {
      * 매일 07시 19분에 12시간 동안의 리포트를 생성하는 스케줄러
      * cron 표현식: 초(0) 분(19) 시(7) 매일(*)
      */
-    @Scheduled(cron = "0 30 7,12,19 * * *")
+    @Scheduled(cron = "0 0 7,19 * * *")
     public void generate12HourReport() {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime from = now.minusHours(12);

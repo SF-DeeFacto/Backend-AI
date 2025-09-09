@@ -155,7 +155,7 @@ public class BedrockService {
     public String generateReportSummary(String reportType, Map<String, Object> requestData) {
         log.info("리포트 생성 요청 - 타입: {}, 데이터: {}", reportType, requestData);
         log.info("zone test : {}", requestData.get("zone"));
-        //reportProducer.requestAlimForStore(requestData.get("zone").toString());
+        reportProducer.requestAlimForStore(requestData.get("zone").toString());
         String lambdaResult = "";
         String bedrockPrompt;
         
