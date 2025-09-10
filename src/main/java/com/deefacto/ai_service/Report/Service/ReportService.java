@@ -298,7 +298,7 @@ public class ReportService {
                 // Report 엔티티 생성
                 Report testReport = Report.builder()
                     .fileName(fileName)
-                    .role("ADMIN") // 관리자 권한
+                    .role(requestData.get("zone").toString()) // 관리자 권한
                     .type("정기")
                     .employeeId("123")
                     .createdAt(now)
