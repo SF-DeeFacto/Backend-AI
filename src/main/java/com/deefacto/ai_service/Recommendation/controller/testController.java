@@ -21,6 +21,7 @@ import java.util.stream.StreamSupport;
 @RestController
 @AllArgsConstructor
 @Slf4j
+@RequestMapping("/test/")
 public class testController {
     private final RecommendThresholdProducer producer;
     private final RecommendationService recommendationService;
