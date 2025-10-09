@@ -3,6 +3,10 @@ plugins {
 	id 'org.springframework.boot' version '3.5.4'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
+// build.gradle
+bootJar {
+	mainClass.set('com.deefacto.ai_service.AiServiceApplication')
+}
 
 group = 'com.deefacto'
 version = '0.0.1-SNAPSHOT'
@@ -12,6 +16,7 @@ java {
 		languageVersion = JavaLanguageVersion.of(17)
 	}
 }
+
 
 configurations {
 	compileOnly {
@@ -23,6 +28,7 @@ repositories {
 	mavenCentral()
 }
 
+
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	compileOnly 'org.projectlombok:lombok'
@@ -30,6 +36,54 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	// Validation
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+	// AWS SDK v2 - S3
+    implementation platform('software.amazon.awssdk:bom:2.20.110')
+    implementation 'software.amazon.awssdk:s3'
+    
+    // AWS SDK v2 - Lambda
+    implementation 'software.amazon.awssdk:lambda'
+    
+    // AWS SDK v2 - Core for signing
+    implementation 'software.amazon.awssdk:auth'
+    implementation 'software.amazon.awssdk:http-client-spi'
+    implementation 'software.amazon.awssdk:apache-client'
+    
+    // HTTP Client for Bedrock API
+    implementation 'org.apache.httpcomponents:httpclient:4.5.14'
+
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'mysql:mysql-connector-java:8.0.33'
+
+	// Redis 의존성
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	
+	// JSON 처리
+	implementation 'com.fasterxml.jackson.core:jackson-databind'
+	
+	// HTTP 클라이언트
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	
+	// PDF 생성 라이브러리
+	implementation 'com.itextpdf:itext7-core:7.2.5'
+	implementation 'com.itextpdf:html2pdf:4.0.5'
+	
+	// Markdown to HTML 변환
+	implementation 'com.vladsch.flexmark:flexmark-all:0.64.8'
+
+	// Kafka 의존성
+	implementation 'org.springframework.kafka:spring-kafka'
+	testImplementation 'org.springframework.kafka:spring-kafka-test'
+}
+
+// build.gradle 파일 하단에 추가
+tasks.register('printProjectName') {
+	doLast {
+		println project.name
+	}
 }
 
 tasks.named('test') {
